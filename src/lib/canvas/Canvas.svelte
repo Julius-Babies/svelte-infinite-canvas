@@ -494,11 +494,7 @@
         return 0.2;
     });
 
-    // Da der Content-Container zoom verwendet, müssen wir die Position
-    // der Punkte entsprechend anpassen, damit sie mit dem Content synchron bleiben
     let bgSize = $derived(`${screenSpacing}px ${screenSpacing}px`);
-    // Background position should follow the content translation in screen pixels
-    // (x,y are screen-space offsets), so don't multiply by scale here.
     let bgPos = $derived(`${x}px ${y}px`);
     let gradient = $derived(`radial-gradient(circle, rgba(0,0,0,${dotOpacity()}) ${dotRadius}px, rgba(0,0,0,0) ${dotRadius + 1}px)`);
     let bgStyle = $derived(`background-image: ${gradient}; background-size: ${bgSize}; background-position: ${bgPos};`);
