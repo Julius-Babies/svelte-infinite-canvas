@@ -99,20 +99,23 @@
 
         const rect = containerRef.getBoundingClientRect();
 
-        // Mouse position relative to container
+        // Mouse position relative to container (in screen space)
         const mouseX = clientX - rect.left;
         const mouseY = clientY - rect.top;
 
-        // World position at mouse (before zoom)
-        const worldX = (mouseX - x) / scale;
-        const worldY = (mouseY - y) / scale;
+        // Current world position at mouse
+        // With CSS zoom: world = (screen - translate) / zoom
+        const worldX = (mouseX - x * scale) / scale;
+        const worldY = (mouseY - y * scale) / scale;
 
         // Apply new scale
         const newScale = clampScale(scale * (1 + delta));
 
-        // Compute new position so world point stays under mouse
-        const newX = mouseX - worldX * newScale;
-        const newY = mouseY - worldY * newScale;
+        // Compute new translate so world point stays under mouse
+        // screen = world * newZoom + translate * newZoom
+        // => translate = (screen - world * newZoom) / newZoom
+        const newX = (mouseX - worldX * newScale) / newScale;
+        const newY = (mouseY - worldY * newScale) / newScale;
 
         if (animate) {
             targetScale = newScale;
@@ -123,12 +126,12 @@
             scale = newScale;
             x = newX;
             y = newY;
-            // keep targets in sync so ongoing animations don't fight
             targetScale = scale;
             targetX = x;
             targetY = y;
         }
     }
+
 
     // Wheel handler (zoom with ctrl/meta, pan otherwise)
     function onWheel(e: WheelEvent) {
