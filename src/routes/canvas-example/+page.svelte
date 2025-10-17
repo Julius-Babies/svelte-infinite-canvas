@@ -3,6 +3,8 @@
     import type {Rectangle as RectangleType} from "./script";
     import Rectangle from "./Rectangle.svelte";
 
+    let zoom = $state(1);
+
     let rectangles: RectangleType[] = $state([
         {
             "id": 0,
@@ -35,10 +37,19 @@
             selectedRectangles = [rectangle];
         }
     }
+    function onMove(rectangle: RectangleType, deltaX: number, deltaY: number) {
+        if (!selectedRectangles.includes(rectangle)) selectedRectangles = [rectangle];
+        selectedRectangles.forEach(r => {
+            r.x += deltaX;
+            r.y += deltaY;
+        })
+    }
+
 </script>
 
 <div class="relative w-full h-full">
     <Canvas
+            bind:scale={zoom}
             onCanvasClick={() => selectedRectangles = []}
     >
         {#each rectangles as rectangle, i}
@@ -47,7 +58,9 @@
                     style="top: {rectangle.y}px; left: {rectangle.x}px; width: {rectangle.width}px; height: {rectangle.height}px"
             >
                 <Rectangle
+                        zoom={zoom}
                         onSelect={(withShift) => select(rectangle, withShift)}
+                        onMove={(deltaX, deltaY) => onMove(rectangle, deltaX, deltaY)}
                         isSelected={selectedRectangles.includes(rectangle)}
                         bind:rect={rectangles[i]}
                 />
@@ -58,7 +71,7 @@
     <div class="absolute top-0 right-0 h-full w-1/4 p-4">
         <div class="h-full w-full bg-white p-4 rounded-lg shadow-lg">
             <div class="flex flex-col gap-2 w-full h-full justify-between">
-                <div class="w-full h-full flex flex-col gap-2 overflow-y-scroll">
+                <div class="w-full h-full flex flex-col gap-2 overflow-y-auto">
                     {#each rectangles as rectangle, index}
                         <div class="flex flex-col gap-2 items-center w-full border border-gray-300 p-2">
                             <div class="flex flex-row items-center justify-between w-full">
