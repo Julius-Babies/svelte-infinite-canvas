@@ -30,6 +30,33 @@
 
     let selectedRectangles: RectangleType[] = $state([]);
 
+    let snappingLines = $derived({
+        x: [
+            0,
+            1920/2,
+            1920,
+            ...rectangles.filter(r => !selectedRectangles.includes(r)).flatMap(r => [
+                r.x,
+                r.x + r.width / 2,
+                r.x + r.width
+            ])
+        ],
+        y: [
+            0,
+            1080/2,
+            1080,
+            ...rectangles.filter(r => !selectedRectangles.includes(r)).flatMap(r => [
+                r.y,
+                r.y + r.height / 2,
+                r.y + r.height
+            ])
+        ]
+    })
+    let usedSnappingLines = $state({
+        x: [] as number[],
+        y: [] as number[]
+    })
+
     function select(rectangle: RectangleType, withShift: boolean) {
         if (withShift) {
             if (selectedRectangles.includes(rectangle)) {
@@ -42,16 +69,110 @@
         }
     }
 
-    function onMove(rectangle: RectangleType, deltaX: number, deltaY: number) {
+    let rectanglesBeforeMove: RectangleType[] | undefined;
+    function onMove(rectangle: RectangleType, mouseX: number, mouseY: number, withSnap: boolean) {
         if (!selectedRectangles.includes(rectangle)) selectedRectangles = [rectangle];
+        if (!rectanglesBeforeMove) rectanglesBeforeMove = Object.create([...selectedRectangles.map(r => ({...r}))])
+
+        const completeRect = {
+            x: Math.min(...rectanglesBeforeMove!.map(r => r.x)),
+            y: Math.min(...rectanglesBeforeMove!.map(r => r.y)),
+            width: Math.max(...rectanglesBeforeMove!.map(r => r.x + r.width)) - Math.min(...rectanglesBeforeMove!.map(r => r.x)),
+            height: Math.max(...rectanglesBeforeMove!.map(r => r.y + r.height)) - Math.min(...rectanglesBeforeMove!.map(r => r.y))
+        }
+
+        const usedSnappingLinesInProcess = {
+            x: [] as number[],
+            y: [] as number[]
+        }
+        if (withSnap) {
+            const theoreticalNewPosition = {
+                x: - mouseX + completeRect.x,
+                y: - mouseY + completeRect.y,
+            }
+
+            const SNAP_DISTANCE = 16/zoom;
+            console.log("Snap distance: ", SNAP_DISTANCE)
+
+            let isXSnapped = false;
+            let isYSnapped = false;
+
+            if (!isXSnapped) {
+                const nearestSnapX = snappingLines.x.sort((a, b) => Math.abs(a - theoreticalNewPosition.x) - Math.abs(b - theoreticalNewPosition.x))[0]
+                const nearestSnapXDistance = Math.abs(nearestSnapX - theoreticalNewPosition.x)
+                if (nearestSnapXDistance <= SNAP_DISTANCE) {
+                    mouseX = - (nearestSnapX - completeRect.x);
+                    usedSnappingLinesInProcess.x.push(nearestSnapX);
+                    isXSnapped = true;
+                }
+            }
+            if (!isXSnapped) {
+                const nearestSnapXWidth = snappingLines.x.sort((a, b) => Math.abs(a - (theoreticalNewPosition.x + completeRect.width)) - Math.abs(b - (theoreticalNewPosition.x + completeRect.width)))[0]
+                const nearestSnapXWidthDistance = Math.abs(nearestSnapXWidth - (theoreticalNewPosition.x + completeRect.width))
+                if (nearestSnapXWidthDistance <= SNAP_DISTANCE) {
+                    mouseX = - (nearestSnapXWidth - completeRect.width - completeRect.x);
+                    usedSnappingLinesInProcess.x.push(nearestSnapXWidth);
+                    isXSnapped = true;
+                }
+            }
+            if (!isXSnapped) {
+                const nearestSnapXCenter = snappingLines.x.sort((a, b) => Math.abs(a - (theoreticalNewPosition.x + completeRect.width / 2)) - Math.abs(b - (theoreticalNewPosition.x + completeRect.width / 2)))[0]
+                const nearestSnapXCenterDistance = Math.abs(nearestSnapXCenter - (theoreticalNewPosition.x + completeRect.width / 2))
+                if (nearestSnapXCenterDistance <= SNAP_DISTANCE) {
+                    mouseX = -(nearestSnapXCenter - completeRect.width / 2 - completeRect.x);
+                    usedSnappingLinesInProcess.x.push(nearestSnapXCenter);
+                    isXSnapped = true;
+                }
+            }
+
+            if (!isYSnapped) {
+                const nearestSnapY = snappingLines.y.sort((a, b) => Math.abs(a - theoreticalNewPosition.y) - Math.abs(b - theoreticalNewPosition.y))[0]
+                const nearestSnapYDistance = Math.abs(nearestSnapY - theoreticalNewPosition.y)
+                if (nearestSnapYDistance <= SNAP_DISTANCE) {
+                    mouseY = - (nearestSnapY - completeRect.y);
+                    usedSnappingLinesInProcess.y.push(nearestSnapY);
+                    isYSnapped = true;
+                }
+            }
+            if (!isYSnapped) {
+                const nearestSnapYWidth = snappingLines.y.sort((a, b) => Math.abs(a - (theoreticalNewPosition.y + completeRect.height)) - Math.abs(b - (theoreticalNewPosition.y + completeRect.height)))[0]
+                const nearestSnapYWidthDistance = Math.abs(nearestSnapYWidth - (theoreticalNewPosition.y + completeRect.height))
+                if (nearestSnapYWidthDistance <= SNAP_DISTANCE) {
+                    mouseY = -(nearestSnapYWidth - completeRect.height - completeRect.y);
+                    usedSnappingLinesInProcess.y.push(nearestSnapYWidth);
+                    isYSnapped = true;
+                }
+            }
+            if (!isYSnapped) {
+                const nearestSnapYCenter = snappingLines.y.sort((a, b) => Math.abs(a - (theoreticalNewPosition.y + completeRect.height / 2)) - Math.abs(b - (theoreticalNewPosition.y + completeRect.height / 2)))[0]
+                const nearestSnapYCenterDistance = Math.abs(nearestSnapYCenter - (theoreticalNewPosition.y + completeRect.height / 2))
+                if (nearestSnapYCenterDistance <= SNAP_DISTANCE) {
+                    mouseY = -(nearestSnapYCenter - completeRect.height / 2 - completeRect.y);
+                    usedSnappingLinesInProcess.y.push(nearestSnapYCenter);
+                    isYSnapped = true;
+                }
+            }
+
+        }
+        usedSnappingLines = usedSnappingLinesInProcess;
+
         selectedRectangles.forEach(r => {
-            r.x += deltaX;
-            r.y += deltaY;
+            const originalX = rectanglesBeforeMove!.find(rb => rb.id === r.id)!.x
+            const originalY = rectanglesBeforeMove!.find(rb => rb.id === r.id)!.y
+            r.x = - mouseX + originalX;
+            r.y = - mouseY + originalY;
         })
     }
 
-    let rectanglesBeforeScale: RectangleType[] | undefined;
+    function onMoveFinished() {
+        rectanglesBeforeMove = undefined;
+        usedSnappingLines = {
+            x: [],
+            y: []
+        }
+    }
 
+    let rectanglesBeforeScale: RectangleType[] | undefined;
     function onScale(
         r: RectangleType,
         proportionally: boolean,
@@ -192,6 +313,21 @@
             bind:scale={zoom}
             onCanvasClick={() => selectedRectangles = []}
     >
+        {#each snappingLines.x.filter(x => usedSnappingLines.x.includes(x)) as x}
+            <div
+                    class="absolute top-0 left-0 h-dvw border w-[{1/zoom}px] border-red-500 border-dashed"
+                    style="transform: translateX({x}px)"
+            >
+            </div>
+        {/each}
+        {#each snappingLines.y.filter(y => usedSnappingLines.y.includes(y)) as y}
+            <div
+                    class="absolute top-0 left-0 w-dvw border h-[{1/zoom}px] border-red-500 border-dashed"
+                    style="transform: translateY({y}px)"
+            >
+            </div>
+        {/each}
+
         {#each rectangles as rectangle, i}
             <div
                     class="absolute"
@@ -206,7 +342,8 @@
                 <Rectangle
                         zoom={zoom}
                         onSelect={(withShift) => select(rectangle, withShift)}
-                        onMove={(deltaX, deltaY) => onMove(rectangle, deltaX, deltaY)}
+                        onMove={(ctrl, mouseX, mouseY) => onMove(rectangle, mouseX, mouseY, !ctrl)}
+                        onMoveFinished={onMoveFinished}
                         onScale={(handle, shift, ctrl, delta) => onScale(rectangle, shift, ctrl, handle, delta)}
                         onScaleFinished={onScaleFinished}
                         isSelected={selectedRectangles.includes(rectangle)}
