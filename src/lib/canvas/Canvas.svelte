@@ -1,5 +1,5 @@
 <script lang="ts">
-    import {onMount} from "svelte";
+    import {onMount, onDestroy} from "svelte";
 
     let {
         scale = $bindable(1),
@@ -14,7 +14,7 @@
         y?: number,
         minScale?: number,
         maxScale?: number,
-        children?: any
+        children?: import('svelte').Snippet,
     } = $props();
 
     // State management
@@ -48,17 +48,19 @@
         if (!containerRef) return;
 
         const rect = containerRef.getBoundingClientRect();
+
+        // Mouse position relative to container
         const mouseX = clientX - rect.left;
         const mouseY = clientY - rect.top;
 
-        // Calculate world position before zoom
+        // World position at mouse (before zoom)
         const worldX = (mouseX - x) / scale;
         const worldY = (mouseY - y) / scale;
 
-        // Apply zoom
+        // Apply new scale
         const newScale = clampScale(scale * (1 + delta));
 
-        // Adjust position to keep world point under cursor
+        // Update position so world point stays under mouse
         x = mouseX - worldX * newScale;
         y = mouseY - worldY * newScale;
         scale = newScale;
@@ -323,15 +325,15 @@
     onMount(() => {
         window.addEventListener('keydown', onKeyDown);
         window.addEventListener('keyup', onKeyUp);
+    });
 
-        return () => {
-            window.removeEventListener('keydown', onKeyDown);
-            window.removeEventListener('keyup', onKeyUp);
-            dragging = false;
-            spacePressed = false;
-            touchPoints.clear();
-            document.body.style.cursor = "default";
-        }
+    onDestroy(() => {
+        window.removeEventListener('keydown', onKeyDown);
+        window.removeEventListener('keyup', onKeyUp);
+        dragging = false;
+        spacePressed = false;
+        touchPoints.clear();
+        document.body.style.cursor = "default";
     });
 
     // Derived styles - intelligent dot grid
@@ -383,33 +385,53 @@
         return 0.2;
     });
 
+    // Da der Content-Container zoom verwendet, müssen wir die Position
+    // der Punkte entsprechend anpassen, damit sie mit dem Content synchron bleiben
     let bgSize = $derived(`${screenSpacing}px ${screenSpacing}px`);
-    let bgPos = $derived(`${x}px ${y}px`);
+    let bgPos = $derived(`${x * scale}px ${y * scale}px`);
     let gradient = $derived(`radial-gradient(circle, rgba(0,0,0,${dotOpacity()}) ${dotRadius}px, rgba(0,0,0,0) ${dotRadius + 1}px)`);
     let bgStyle = $derived(`background-image: ${gradient}; background-size: ${bgSize}; background-position: ${bgPos};`);
 </script>
 
 <div
         bind:this={containerRef}
-        class="canvas-container w-full h-full relative overflow-hidden"
-        role="application"
+        class="canvas-container"
         onwheel={onWheel}
         onpointerdown={onPointerDown}
         onpointermove={onPointerMove}
         onpointerup={onPointerUp}
         onpointercancel={onPointerUp}
 >
-    <div class="dot-bg w-full h-full absolute top-0 left-o" style={bgStyle}></div>
+    <div class="dot-bg" style={bgStyle}></div>
 
     <div class="content" style="transform: translate({x}px, {y}px); zoom: {scale};">
-        {#if children}
-            {@render children()}
-        {/if}
-    </div>
-
-    <div class="absolute w-52 h-8 bg-white bottom-4 right-4 flex flex-row items-center justify-center rounded-md shadow-md">
-        <button class="aspect-square h-full bg-gray-200 rounded-md" onclick={() => scale /= 1.1}>-</button>
-        <input type="range" min="0.1" max="10" step="0.1" bind:value={scale} class="w-full h-full bg-gray-200 rounded-md" />
-        <button class="aspect-square h-full bg-gray-200 rounded-md" onclick={() => scale *= 1.1}>+</button>
+        {@render children?.()}
     </div>
 </div>
+
+<style>
+    .canvas-container {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        touch-action: none;
+        user-select: none;
+    }
+
+    .dot-bg {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        background-color: #f8f9fa;
+    }
+
+    .content {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transform-origin: 0 0;
+        z-index: 1;
+    }
+</style>
