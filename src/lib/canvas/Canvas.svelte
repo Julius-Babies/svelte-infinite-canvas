@@ -1,5 +1,5 @@
 <script lang="ts">
-    import {onMount, onDestroy} from "svelte";
+    import {onMount} from "svelte";
 
     let {
         scale = $bindable(1),
@@ -8,7 +8,7 @@
         minScale = 0.1,
         maxScale = 10,
         children,
-    } : {
+    }: {
         scale?: number,
         x?: number,
         y?: number,
@@ -28,7 +28,7 @@
     let originY = 0;
 
     // Touch pinch state
-    let touchPoints = new Map<number, {x: number, y: number}>();
+    let touchPoints = new Map<number, { x: number, y: number }>();
     let initialPinchDistance = 0;
     let initialPinchScale = 1;
     let pinchCenter = {x: 0, y: 0};
@@ -150,7 +150,8 @@
         pointerId = null;
         try {
             (e.target as Element).releasePointerCapture(e.pointerId);
-        } catch {}
+        } catch {
+        }
         document.body.style.cursor = spacePressed ? "grab" : "default";
     }
 
@@ -325,15 +326,14 @@
     onMount(() => {
         window.addEventListener('keydown', onKeyDown);
         window.addEventListener('keyup', onKeyUp);
-    });
-
-    onDestroy(() => {
-        window.removeEventListener('keydown', onKeyDown);
-        window.removeEventListener('keyup', onKeyUp);
-        dragging = false;
-        spacePressed = false;
-        touchPoints.clear();
-        document.body.style.cursor = "default";
+        return () => {
+            window.removeEventListener('keydown', onKeyDown);
+            window.removeEventListener('keyup', onKeyUp);
+            dragging = false;
+            spacePressed = false;
+            touchPoints.clear();
+            document.body.style.cursor = "default";
+        }
     });
 
     // Derived styles - intelligent dot grid
@@ -388,7 +388,9 @@
     // Da der Content-Container zoom verwendet, müssen wir die Position
     // der Punkte entsprechend anpassen, damit sie mit dem Content synchron bleiben
     let bgSize = $derived(`${screenSpacing}px ${screenSpacing}px`);
-    let bgPos = $derived(`${x * scale}px ${y * scale}px`);
+    // Background position should follow the content translation in screen pixels
+    // (x,y are screen-space offsets), so don't multiply by scale here.
+    let bgPos = $derived(`${x}px ${y}px`);
     let gradient = $derived(`radial-gradient(circle, rgba(0,0,0,${dotOpacity()}) ${dotRadius}px, rgba(0,0,0,0) ${dotRadius + 1}px)`);
     let bgStyle = $derived(`background-image: ${gradient}; background-size: ${bgSize}; background-position: ${bgPos};`);
 </script>
@@ -404,7 +406,10 @@
 >
     <div class="dot-bg" style={bgStyle}></div>
 
-    <div class="content" style="transform: translate({x}px, {y}px); zoom: {scale};">
+    <!-- Use translate(x,y) then scale(s) so mapping is: screen = world*scale + (x,y).
+         This ensures world-to-screen math in zoomToPoint stays valid and the mouse
+         remains the center of zoom. -->
+    <div class="content" style={`transform: translate(${x}px, ${y}px) scale(${scale});`}>
         {@render children?.()}
     </div>
 </div>
