@@ -495,7 +495,7 @@
     });
 
     let bgSize = $derived(`${screenSpacing}px ${screenSpacing}px`);
-    let bgPos = $derived(`${x}px ${y}px`);
+    let bgPos = $derived(`${x * scale}px ${y * scale}px`);
     let gradient = $derived(`radial-gradient(circle, rgba(0,0,0,${dotOpacity()}) ${dotRadius}px, rgba(0,0,0,0) ${dotRadius + 1}px)`);
     let bgStyle = $derived(`background-image: ${gradient}; background-size: ${bgSize}; background-position: ${bgPos};`);
 </script>
@@ -504,6 +504,7 @@
         bind:this={containerRef}
         class="canvas-container"
         role="application"
+        aria-hidden="true"
         onwheel={onWheel}
         onpointerdown={onPointerDown}
         onpointermove={onPointerMove}
@@ -520,7 +521,7 @@
     <!-- Use translate(x,y) then scale(s) so mapping is: screen = world*scale + (x,y).
          This ensures world-to-screen math in zoomToPoint stays valid and the mouse
          remains the center of zoom. -->
-    <div class="content relative" style={`transform: translate(${x}px, ${y}px) scale(${scale});`}>
+    <div class="content relative" style={`transform: translate(${x}px, ${y}px); zoom: ${scale};`}>
         {@render children?.()}
     </div>
 </div>
