@@ -53,6 +53,7 @@
 
     // Smooth animation loop: tween current x/y/scale towards targets
     let rafId: number | null = null;
+
     function startAnimation() {
         if (animating) return;
         animating = true;
@@ -339,6 +340,11 @@
 
     // Keyboard handling
     function onKeyDown(e: KeyboardEvent) {
+        const target = e.target as HTMLElement;
+        if (target.matches('input, textarea, select, [contenteditable="true"]')) {
+            return;
+        }
+
         // Space key for pan mode
         if (e.code === 'Space' && !spacePressed) {
             spacePressed = true;
@@ -347,8 +353,7 @@
             return;
         }
 
-        // Reset (R)
-        if (e.code === 'KeyR') {
+        if (e.code === 'KeyR' && !e.metaKey && !e.ctrlKey) {
             x = 0;
             y = 0;
             scale = 1;
@@ -356,6 +361,11 @@
             targetY = y;
             targetScale = scale;
             e.preventDefault();
+            return;
+        }
+
+        // Block Command/Ctrl + R explicitly (Browser-Reload)
+        if (e.code === 'KeyR' && (e.metaKey || e.ctrlKey)) {
             return;
         }
 
