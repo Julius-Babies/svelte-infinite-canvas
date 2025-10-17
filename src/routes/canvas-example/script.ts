@@ -4,5 +4,7 @@ export interface Rectangle {
     y: number;
     width: number;
     height: number;
-    color: string
+    color: string;
 }
+
+export type HandleType = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";

@@ -1,6 +1,6 @@
 <script lang="ts">
     import Canvas from "$lib/canvas/Canvas.svelte";
-    import type {Rectangle as RectangleType} from "./script";
+    import type {HandleType, Rectangle as RectangleType} from "./script";
     import Rectangle from "./Rectangle.svelte";
 
     let zoom = $state(1);
@@ -8,19 +8,23 @@
     let rectangles: RectangleType[] = $state([
         {
             "id": 0,
-            "x": 80,
-            "y": 10,
+            "x": 87,
+            "y": 88,
             "width": 100,
             "height": 100,
-            "color": "#ff00ff"
+            "color": "#ff00ff",
+            isFlippedHorizontally: false,
+            isFlippedVertically: false,
         },
         {
             "id": 1,
-            "x": 190,
-            "y": 350,
+            "x": 326,
+            "y": 92,
             "width": 800,
             "height": 240,
-            "color": "#9f8e23"
+            "color": "#9f8e23",
+            isFlippedHorizontally: false,
+            isFlippedVertically: false,
         }
     ]);
 
@@ -45,6 +49,84 @@
         })
     }
 
+    function onScale(rectangle: RectangleType, handle: HandleType, delta: { x: number, y: number }) {
+        const beforeWidth = rectangle.width;
+        const beforeHeight = rectangle.height;
+        let deltaX = 0;
+        let deltaY = 0;
+        let deltaWidth = 0;
+        let deltaHeight = 0;
+
+        switch (handle) {
+            case "nw":
+                deltaX = delta.x;
+                deltaY = delta.y;
+                deltaWidth = -delta.x;
+                deltaHeight = -delta.y;
+                break;
+            case "n":
+                deltaY = delta.y;
+                deltaHeight = -delta.y;
+                break;
+            case "ne":
+                deltaY = delta.y;
+                deltaWidth = delta.x;
+                deltaHeight = -delta.y;
+                break;
+            case "e":
+                deltaWidth = delta.x;
+                break;
+            case "se":
+                deltaWidth = delta.x;
+                deltaHeight = delta.y;
+                break;
+            case "s":
+                deltaHeight = delta.y;
+                break;
+            case "sw":
+                deltaX = delta.x;
+                deltaWidth = -delta.x;
+                deltaHeight = delta.y;
+                break;
+            case "w":
+                deltaX = delta.x;
+                deltaWidth = -delta.x;
+                break;
+        }
+
+        rectangle.x += deltaX;
+        rectangle.y += deltaY;
+        rectangle.width += deltaWidth;
+        rectangle.height += deltaHeight;
+
+        selectedRectangles
+            .filter(r => r !== rectangle)
+            .forEach(r => {
+                const rBeforeWidth = r.width;
+                const rBeforeHeight = r.height;
+                const rWidthFactor = rBeforeWidth / beforeWidth;
+                const rHeightFactor = rBeforeHeight / beforeHeight;
+                r.x += (rWidthFactor * deltaX);
+                r.y += (rHeightFactor * deltaY);
+                r.width += (rWidthFactor * deltaWidth);
+                r.height += (rHeightFactor * deltaHeight);
+            })
+    }
+
+    function normalizeRectangles() {
+        rectangles.forEach(r => {
+            if (r.width < 0) {
+                r.x += r.width;
+                r.width = Math.abs(r.width);
+            }
+
+            if (r.height < 0) {
+                r.y += r.height;
+                r.height = Math.abs(r.height);
+            }
+        })
+    }
+
 </script>
 
 <div class="relative w-full h-full">
@@ -55,12 +137,20 @@
         {#each rectangles as rectangle, i}
             <div
                     class="absolute"
-                    style="top: {rectangle.y}px; left: {rectangle.x}px; width: {rectangle.width}px; height: {rectangle.height}px"
+                    style="
+                        top: {rectangle.height >= 0 ? rectangle.y : rectangle.y + rectangle.height}px;
+                        left: {rectangle.width >= 0 ? rectangle.x : rectangle.x + rectangle.width}px;
+                        width: {Math.abs(rectangle.width)}px;
+                        height: {Math.abs(rectangle.height)}px;
+                    "
+
             >
                 <Rectangle
                         zoom={zoom}
                         onSelect={(withShift) => select(rectangle, withShift)}
                         onMove={(deltaX, deltaY) => onMove(rectangle, deltaX, deltaY)}
+                        onScale={(handle, delta) => onScale(rectangle, handle, delta)}
+                        onScaleFinished={normalizeRectangles}
                         isSelected={selectedRectangles.includes(rectangle)}
                         bind:rect={rectangles[i]}
                 />

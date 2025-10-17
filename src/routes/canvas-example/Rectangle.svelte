@@ -1,5 +1,7 @@
 <script lang="ts">
-    import type {Rectangle} from "./script";
+    import type {HandleType, Rectangle} from "./script";
+    import {onMount} from "svelte";
+    import {isShiftPressed} from "$lib/state/keyboard";
 
     let {
         rect = $bindable(),
@@ -7,15 +9,18 @@
         zoom,
         onSelect,
         onMove,
+        onScale,
+        onScaleFinished,
     }: {
         rect: Rectangle,
         isSelected: boolean,
         zoom: number,
         onSelect: (withShift: boolean) => void,
         onMove: (x: number, y: number) => void,
+        onScale: (handle: HandleType, delta: { x: number, y: number }) => void,
+        onScaleFinished: () => void,
     } = $props();
 
-    type HandleType = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
     interface Handle {
         type: HandleType,
         x: number,
@@ -26,91 +31,114 @@
     const HANDLE_SIZE_PX = 16;
     let handleSize = $derived(HANDLE_SIZE_PX / zoom);
     let handles: Handle[] = $derived.by(() => {
+        const w = rect.width;
+        const h = rect.height;
+
+        // Vorzeichen für Spiegelung
+        const flipX = w < 0 ? -1 : 1;
+        const flipY = h < 0 ? -1 : 1;
+
+        const absW = Math.abs(w);
+        const absH = Math.abs(h);
+
         return [
             {
                 type: "nw",
-                x: -handleSize/2,
-                y: -handleSize/2,
+                x: (flipX === 1 ? 0 : absW) - handleSize / 2,
+                y: (flipY === 1 ? 0 : absH) - handleSize / 2,
                 cursor: "nw-resize"
             },
-            {
-                type: "n",
-                x: rect.width/2 - handleSize/2,
-                y: -handleSize/2,
-                cursor: "n-resize"
-            },
+            {type: "n", x: absW / 2 - handleSize / 2, y: (flipY === 1 ? 0 : absH) - handleSize / 2, cursor: "n-resize"},
             {
                 type: "ne",
-                x: rect.width - handleSize/2,
-                y: -handleSize/2,
+                x: (flipX === 1 ? absW : 0) - handleSize / 2,
+                y: (flipY === 1 ? 0 : absH) - handleSize / 2,
                 cursor: "ne-resize"
             },
-            {
-                type: "w",
-                x: -handleSize/2,
-                y: rect.height/2 - handleSize/2,
-                cursor: "w-resize"
-            },
-            {
-                type: "e",
-                x: rect.width - handleSize/2,
-                y: rect.height/2 - handleSize/2,
-                cursor: "e-resize"
-            },
+            {type: "w", x: (flipX === 1 ? 0 : absW) - handleSize / 2, y: absH / 2 - handleSize / 2, cursor: "w-resize"},
+            {type: "e", x: (flipX === 1 ? absW : 0) - handleSize / 2, y: absH / 2 - handleSize / 2, cursor: "e-resize"},
             {
                 type: "sw",
-                x: -handleSize/2,
-                y: rect.height - handleSize/2,
+                x: (flipX === 1 ? 0 : absW) - handleSize / 2,
+                y: (flipY === 1 ? absH : 0) - handleSize / 2,
                 cursor: "sw-resize"
             },
-            {
-                type: "s",
-                x: rect.width/2 - handleSize/2,
-                y: rect.height - handleSize/2,
-                cursor: "s-resize"
-            },
+            {type: "s", x: absW / 2 - handleSize / 2, y: (flipY === 1 ? absH : 0) - handleSize / 2, cursor: "s-resize"},
             {
                 type: "se",
-                x: rect.width - handleSize/2,
-                y: rect.height - handleSize/2,
+                x: (flipX === 1 ? absW : 0) - handleSize / 2,
+                y: (flipY === 1 ? absH : 0) - handleSize / 2,
                 cursor: "se-resize"
             }
         ]
+    });
+
+    onMount(() => {
+        const unsubscribeShift = isShiftPressed.subscribe(shift => {
+            if (isMouseDownStartingPosition && selectedHandle) {
+                // Object is being scaled
+                onScale(selectedHandle.type, {
+                    x: rect.width,
+                    y: rect.height,
+                })
+                const draggedX = (isMouseDownStartingPosition.x - elementPositionBeforeDrag!.x) / zoom;
+                const draggedY = (isMouseDownStartingPosition.y - elementPositionBeforeDrag!.y) / zoom;
+            }
+        })
+
+        return () => {
+            unsubscribeShift();
+        }
     })
 
+
     let selectedHandle: Handle | undefined = $state();
-    let isMouseDown = $state(false);
+    let isMouseDownStartingPosition: { x: number, y: number } | null = $state(null);
+    let elementPositionBeforeDrag: { x: number, y: number, width: number, height: number } | null = $state(null);
     let isShiftOnDown = false;
+
     function onMouseDown(e: MouseEvent, handle: Handle | undefined) {
-        isMouseDown = true;
+        isMouseDownStartingPosition = {x: e.clientX, y: e.clientY};
+        elementPositionBeforeDrag = {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+        }
         isShiftOnDown = e.shiftKey;
         selectedHandle = handle;
         document.addEventListener("mousemove", onMouseMove);
         document.addEventListener("mouseup", onMouseUp);
         e.preventDefault();
+        e.stopPropagation();
     }
 
     let wasDragging = false;
+
     function onMouseMove(e: MouseEvent) {
-        if (!isMouseDown) return;
+        if (!isMouseDownStartingPosition) return;
         wasDragging = true;
-        onMove(e.movementX / zoom, e.movementY / zoom);
+        if (selectedHandle) onScale(selectedHandle.type, {x: e.movementX / zoom, y: e.movementY / zoom});
+        else onMove(e.movementX / zoom, e.movementY / zoom);
     }
 
     function onMouseUp(e: MouseEvent) {
         document.removeEventListener("mousemove", onMouseMove);
         document.removeEventListener("mouseup", onMouseUp);
-        if (!wasDragging) onSelect(e.shiftKey || isShiftOnDown);
+        if (selectedHandle) onScaleFinished();
+        if (!wasDragging && !selectedHandle) onSelect(e.shiftKey || isShiftOnDown);
         isShiftOnDown = false;
         wasDragging = false;
-        isMouseDown = false;
+        isMouseDownStartingPosition = null;
         selectedHandle = undefined;
     }
 </script>
 
-<button
+<div
         onmousedown={(e) => onMouseDown(e, undefined)}
         aria-label="Auswählen"
+        role="button"
+        tabindex="0"
         class="w-full h-full relative border-black"
         style="background-color: {rect.color};"
         class:border-1={isSelected}
@@ -119,7 +147,7 @@
         Auswahl {zoom}
 
         {#each handles as handle}
-            <div
+            <button
                     style="
                         width: {handleSize}px;
                         height: {handleSize}px;
@@ -130,8 +158,10 @@
                         border: {1/zoom}px solid black;
                         background-color: white;
                     "
-            ></div>
+                    aria-label="Handle {handle.type}"
+                    onmousedown={(e) => onMouseDown(e, handle)}
+            ></button>
         {/each}
     {/if}
 
-</button>
+</div>
