@@ -1,5 +1,7 @@
 <script lang="ts">
     import type {HandleType, Rectangle} from "./script";
+    import {onMount} from "svelte";
+    import {isShiftPressed} from "$lib/state/keyboard";
 
     let {
         rect = $bindable(),
@@ -15,7 +17,7 @@
         zoom: number,
         onSelect: (withShift: boolean) => void,
         onMove: (x: number, y: number) => void,
-        onScale: (handle: HandleType, mouse: { handleX: number, handleY: number }) => void,
+        onScale: (handle: HandleType, isShiftPressed: boolean, mouse: { handleX: number, handleY: number }) => void,
         onScaleFinished: () => void,
     } = $props();
 
@@ -74,17 +76,18 @@
 
     let selectedHandle: Handle | undefined = $state();
     let isMouseDownStartingPosition: { x: number, y: number } | null = $state(null);
-    let elementPositionBeforeDrag: { x: number, y: number, width: number, height: number } | null = $state(null);
+    let applicationMousePosition: { x: number, y: number } | null = $state(null);
+    let canvasMousePosition = $derived.by(() => {
+        if (!applicationMousePosition || !isMouseDownStartingPosition) return {x: 0, y: 0};
+        return {
+            x: (isMouseDownStartingPosition.x - applicationMousePosition.x)/zoom,
+            y: (isMouseDownStartingPosition.y - applicationMousePosition.y)/zoom,
+        }
+    });
     let isShiftOnDown = false;
 
     function onMouseDown(e: MouseEvent, handle: Handle | undefined) {
         isMouseDownStartingPosition = {x: e.clientX, y: e.clientY};
-        elementPositionBeforeDrag = {
-            x: rect.x,
-            y: rect.y,
-            width: rect.width,
-            height: rect.height,
-        }
         isShiftOnDown = e.shiftKey;
         selectedHandle = handle;
         document.addEventListener("mousemove", onMouseMove);
@@ -96,12 +99,11 @@
     let wasDragging = false;
 
     function onMouseMove(e: MouseEvent) {
+        applicationMousePosition = {x: e.clientX, y: e.clientY};
         if (!isMouseDownStartingPosition) return;
         wasDragging = true;
-        if (selectedHandle && elementPositionBeforeDrag) {
-            const mouseX = isMouseDownStartingPosition.x - e.clientX;
-            const mouseY = isMouseDownStartingPosition.y - e.clientY;
-            onScale(selectedHandle.type, { handleX: mouseX / zoom, handleY: mouseY / zoom });
+        if (selectedHandle && canvasMousePosition) {
+            onScale(selectedHandle.type, e.shiftKey, { handleX: canvasMousePosition.x, handleY: canvasMousePosition.y });
         }
         else onMove(e.movementX / zoom, e.movementY / zoom);
     }
@@ -116,6 +118,18 @@
         isMouseDownStartingPosition = null;
         selectedHandle = undefined;
     }
+
+    onMount(() => {
+        const unsubscribeShift = isShiftPressed.subscribe(value => {
+            if (isMouseDownStartingPosition && selectedHandle) {
+                onScale(selectedHandle.type, value, { handleX: canvasMousePosition.x, handleY: canvasMousePosition.y });
+            }
+        })
+
+        return () => {
+            unsubscribeShift();
+        }
+    })
 </script>
 
 <div
@@ -139,13 +153,16 @@
                         top: {handle.y}px;
                         left: {handle.x}px;
                         cursor: {handle.cursor};
-                        border: {1/zoom}px solid black;
                         background-color: white;
                     "
                     class="text-xs"
                     aria-label="Handle {handle.type}"
                     onmousedown={(e) => onMouseDown(e, handle)}
-            >{handle.type}</button>
+            >
+                <div class="w-full h-full border-1" style="zoom: {1/zoom}">
+                    {handle.type}
+                </div>
+            </button>
         {/each}
     {/if}
 

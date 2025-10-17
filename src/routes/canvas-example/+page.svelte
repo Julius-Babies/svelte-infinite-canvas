@@ -199,7 +199,7 @@
                         zoom={zoom}
                         onSelect={(withShift) => select(rectangle, withShift)}
                         onMove={(deltaX, deltaY) => onMove(rectangle, deltaX, deltaY)}
-                        onScale={(handle, delta) => onScale(rectangle, true, handle, delta)}
+                        onScale={(handle, shift, delta) => onScale(rectangle, shift, handle, delta)}
                         onScaleFinished={onScaleFinished}
                         isSelected={selectedRectangles.includes(rectangle)}
                         bind:rect={rectangles[i]}
