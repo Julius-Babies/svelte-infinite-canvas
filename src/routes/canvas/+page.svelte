@@ -332,12 +332,58 @@
         document.body.style.cursor = "default";
     });
 
-    // Derived styles
-    let dotSpacing = $derived(Math.max(8, 48 / Math.max(0.01, scale)));
-    let dotRadius = $derived(Math.max(1, 2 / Math.max(0.01, scale)));
-    let bgSize = $derived(`${dotSpacing}px ${dotSpacing}px`);
+    // Derived styles - intelligent dot grid
+    // Base spacing in world coordinates (constant)
+    const BASE_SPACING = 50;
+
+    // Find the appropriate grid level based on scale
+    // We want dots to appear at reasonable intervals (20-80px on screen)
+    let gridLevel = $derived(() => {
+        const screenSpacing = BASE_SPACING * scale;
+
+        // If too dense, jump to next level (double spacing)
+        if (screenSpacing < 20) {
+            let level = 1;
+            while (BASE_SPACING * Math.pow(2, level) * scale < 20 && level < 6) {
+                level++;
+            }
+            return level;
+        }
+
+        // If too sparse, jump to previous level (half spacing)
+        if (screenSpacing > 80) {
+            let level = -1;
+            while (BASE_SPACING * Math.pow(2, level) * scale > 80 && level > -6) {
+                level--;
+            }
+            return level;
+        }
+
+        return 0;
+    });
+
+    // Calculate actual spacing based on grid level
+    let worldSpacing = $derived(BASE_SPACING * Math.pow(2, gridLevel()));
+    let screenSpacing = $derived(worldSpacing * scale);
+
+    // Dot size: smaller at lower zoom levels, but never too small
+    let dotRadius = $derived(Math.max(1, Math.min(3, scale * 1.5)));
+
+    // Opacity: fade out dots that are getting too dense before level switch
+    let dotOpacity = $derived(() => {
+        const spacing = screenSpacing;
+        if (spacing < 20) {
+            return Math.max(0.05, (spacing - 10) / 10);
+        }
+        if (spacing > 80) {
+            return Math.max(0.05, 1 - (spacing - 80) / 30);
+        }
+        return 0.2;
+    });
+
+    let bgSize = $derived(`${screenSpacing}px ${screenSpacing}px`);
     let bgPos = $derived(`${x}px ${y}px`);
-    let gradient = $derived(`radial-gradient(circle, rgba(0,0,0,0.2) ${dotRadius}px, rgba(0,0,0,0) ${dotRadius + 1}px)`);
+    let gradient = $derived(`radial-gradient(circle, rgba(0,0,0,${dotOpacity()}) ${dotRadius}px, rgba(0,0,0,0) ${dotRadius + 1}px)`);
     let bgStyle = $derived(`background-image: ${gradient}; background-size: ${bgSize}; background-position: ${bgPos};`);
 </script>
 
