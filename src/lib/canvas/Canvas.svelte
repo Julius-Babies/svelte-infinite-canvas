@@ -27,6 +27,14 @@
     let originX = 0;
     let originY = 0;
 
+    // Animation targets for smooth keyboard movement/zoom
+    let targetX = x;
+    let targetY = y;
+    let targetScale = scale;
+    let animating = false;
+    const ANIM_DAMPING = 0.18; // easing factor (0-1), higher = snappier
+    const EPS = 0.001;
+
     // Touch pinch state
     let touchPoints = new Map<number, { x: number, y: number }>();
     let initialPinchDistance = 0;
@@ -43,8 +51,47 @@
         return Math.max(minScale, Math.min(maxScale, s));
     }
 
-    // Zoom to a specific point
-    function zoomToPoint(clientX: number, clientY: number, delta: number) {
+    // Smooth animation loop: tween current x/y/scale towards targets
+    let rafId: number | null = null;
+    function startAnimation() {
+        if (animating) return;
+        animating = true;
+        rafId = requestAnimationFrame(animateStep);
+    }
+
+    function stopAnimation() {
+        animating = false;
+        if (rafId != null) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+        }
+    }
+
+    function animateStep() {
+        // Move current values towards target values using exponential smoothing
+        const dx = targetX - x;
+        const dy = targetY - y;
+        const ds = targetScale - scale;
+
+        x += dx * ANIM_DAMPING;
+        y += dy * ANIM_DAMPING;
+        scale += ds * ANIM_DAMPING;
+
+        // If we're very close to target, snap and stop
+        if (Math.abs(dx) + Math.abs(dy) + Math.abs(ds) < EPS) {
+            x = targetX;
+            y = targetY;
+            scale = targetScale;
+            stopAnimation();
+            return;
+        }
+
+        rafId = requestAnimationFrame(animateStep);
+    }
+
+    // Zoom to a specific point. If animate=true, set targets and start animation,
+    // otherwise apply immediately.
+    function zoomToPoint(clientX: number, clientY: number, delta: number, animate = false) {
         if (!containerRef) return;
 
         const rect = containerRef.getBoundingClientRect();
@@ -60,10 +107,24 @@
         // Apply new scale
         const newScale = clampScale(scale * (1 + delta));
 
-        // Update position so world point stays under mouse
-        x = mouseX - worldX * newScale;
-        y = mouseY - worldY * newScale;
-        scale = newScale;
+        // Compute new position so world point stays under mouse
+        const newX = mouseX - worldX * newScale;
+        const newY = mouseY - worldY * newScale;
+
+        if (animate) {
+            targetScale = newScale;
+            targetX = newX;
+            targetY = newY;
+            startAnimation();
+        } else {
+            scale = newScale;
+            x = newX;
+            y = newY;
+            // keep targets in sync so ongoing animations don't fight
+            targetScale = scale;
+            targetX = x;
+            targetY = y;
+        }
     }
 
     // Wheel handler (zoom with ctrl/meta, pan otherwise)
@@ -71,13 +132,16 @@
         e.preventDefault();
 
         if (e.ctrlKey || e.metaKey) {
-            // Zoom around cursor
+            // Zoom around cursor (immediate; wheel should feel responsive)
             const delta = -e.deltaY * 0.01;
-            zoomToPoint(e.clientX, e.clientY, delta);
+            zoomToPoint(e.clientX, e.clientY, delta, false);
         } else {
-            // Trackpad pan (fire-and-forget)
+            // Trackpad pan (fire-and-forget) - apply immediately and sync targets
             x -= e.deltaX;
             y -= e.deltaY;
+            targetX = x;
+            targetY = y;
+            stopAnimation();
         }
     }
 
@@ -97,8 +161,8 @@
         if (e.button === 0 && !spacePressed) {
             const now = Date.now();
             if (now - lastClickTime < DOUBLE_CLICK_THRESHOLD) {
-                // Double click - zoom in
-                zoomToPoint(e.clientX, e.clientY, 0.5);
+                // Double click - zoom in (keep immediate)
+                zoomToPoint(e.clientX, e.clientY, 0.5, false);
                 lastClickTime = 0;
             } else {
                 lastClickTime = now;
@@ -116,6 +180,12 @@
         originY = y;
         e.preventDefault();
         document.body.style.cursor = "grabbing";
+        // Cancel any keyboard-driven animation while user interacts
+        stopAnimation();
+        // Keep targets synced so animation doesn't resume unexpectedly
+        targetX = x;
+        targetY = y;
+        targetScale = scale;
     }
 
     // Pointer move handler
@@ -131,6 +201,9 @@
         const dy = e.clientY - startY;
         x = originX + dx;
         y = originY + dy;
+        // Keep targets in sync so keyboard animation doesn't fight
+        targetX = x;
+        targetY = y;
     }
 
     // Pointer up handler
@@ -153,6 +226,9 @@
         } catch {
         }
         document.body.style.cursor = spacePressed ? "grab" : "default";
+        // After user stops dragging, ensure targets match final pos
+        targetX = x;
+        targetY = y;
     }
 
     // Touch handling
@@ -164,7 +240,7 @@
             const now = Date.now();
             if (now - lastTapTime < DOUBLE_CLICK_THRESHOLD) {
                 // Double tap - zoom in
-                zoomToPoint(e.clientX, e.clientY, 0.5);
+                zoomToPoint(e.clientX, e.clientY, 0.5, false);
                 lastTapTime = 0;
                 touchPoints.clear();
             } else {
@@ -186,6 +262,11 @@
                 x: (points[0].x + points[1].x) / 2,
                 y: (points[0].y + points[1].y) / 2
             };
+            // stop keyboard animations while pinching
+            stopAnimation();
+            targetScale = scale;
+            targetX = x;
+            targetY = y;
         }
     }
 
@@ -199,6 +280,8 @@
             const dy = e.clientY - startY;
             x = originX + dx;
             y = originY + dy;
+            targetX = x;
+            targetY = y;
         } else if (touchPoints.size === 2) {
             // Two finger pinch/pan
             const points = Array.from(touchPoints.values());
@@ -226,6 +309,11 @@
             x = centerX - worldX * newScale + (newCenter.x - pinchCenter.x);
             y = centerY - worldY * newScale + (newCenter.y - pinchCenter.y);
             scale = newScale;
+
+            // keep targets in sync so animation doesn't fight when pinch ends
+            targetScale = scale;
+            targetX = x;
+            targetY = y;
         }
     }
 
@@ -264,6 +352,9 @@
             x = 0;
             y = 0;
             scale = 1;
+            targetX = x;
+            targetY = y;
+            targetScale = scale;
             e.preventDefault();
             return;
         }
@@ -272,14 +363,15 @@
         if (e.code === 'Equal' || e.code === 'NumpadAdd') {
             if (!containerRef) return;
             const rect = containerRef.getBoundingClientRect();
-            zoomToPoint(rect.width / 2, rect.height / 2, 0.1);
+            // animated zoom to center
+            zoomToPoint(rect.width / 2, rect.height / 2, 0.1, true);
             e.preventDefault();
             return;
         }
         if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
             if (!containerRef) return;
             const rect = containerRef.getBoundingClientRect();
-            zoomToPoint(rect.width / 2, rect.height / 2, -0.1);
+            zoomToPoint(rect.width / 2, rect.height / 2, -0.1, true);
             e.preventDefault();
             return;
         }
@@ -291,19 +383,23 @@
         switch (e.code) {
             case 'ArrowLeft':
             case 'KeyA':
-                x += nudgeDistance;
+                targetX += nudgeDistance;
+                startAnimation();
                 break;
             case 'ArrowRight':
             case 'KeyD':
-                x -= nudgeDistance;
+                targetX -= nudgeDistance;
+                startAnimation();
                 break;
             case 'ArrowUp':
             case 'KeyW':
-                y += nudgeDistance;
+                targetY += nudgeDistance;
+                startAnimation();
                 break;
             case 'ArrowDown':
             case 'KeyS':
-                y -= nudgeDistance;
+                targetY -= nudgeDistance;
+                startAnimation();
                 break;
             default:
                 handled = false;
@@ -333,6 +429,7 @@
             spacePressed = false;
             touchPoints.clear();
             document.body.style.cursor = "default";
+            stopAnimation();
         }
     });
 
