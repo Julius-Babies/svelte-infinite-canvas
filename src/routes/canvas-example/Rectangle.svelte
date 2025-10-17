@@ -142,9 +142,10 @@
                         border: {1/zoom}px solid black;
                         background-color: white;
                     "
+                    class="text-xs"
                     aria-label="Handle {handle.type}"
                     onmousedown={(e) => onMouseDown(e, handle)}
-            ></button>
+            >{handle.type}</button>
         {/each}
     {/if}
 

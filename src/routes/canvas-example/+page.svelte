@@ -8,13 +8,13 @@
     let rectangles: RectangleType[] = $state([
         {
             "id": 0,
-            "x": 87,
-            "y": 88,
+            "x": 0,
+            "y": 0,
             "width": 100,
-            "height": 100,
+            "height": 300,
             "color": "#ff00ff",
-            isFlippedHorizontally: false,
-            isFlippedVertically: false,
+            "isFlippedHorizontally": false,
+            "isFlippedVertically": false
         },
         {
             "id": 1,
@@ -23,8 +23,8 @@
             "width": 800,
             "height": 240,
             "color": "#9f8e23",
-            isFlippedHorizontally: false,
-            isFlippedVertically: false,
+            "isFlippedHorizontally": false,
+            "isFlippedVertically": false
         }
     ]);
 
@@ -54,6 +54,7 @@
 
     function onScale(
         r: RectangleType,
+        proportionally: boolean,
         handle: HandleType,
         data: {
             handleX: number;
@@ -66,37 +67,80 @@
         const originalX = rectanglesBeforeScale!.find(rb => rb.id === r.id)!.x
         const originalY = rectanglesBeforeScale!.find(rb => rb.id === r.id)!.y
 
+        if (proportionally && (handle === "nw" || handle === "ne" || handle === "se" || handle === "sw")) {
+            if (handle === "se") {
+                const a = originalHeight / originalWidth;
+                const b = 0
+                const f = (x: number) => a * x + b;
+                const y = f(data.handleX);
+                if (y > data.handleY) {
+                    data.handleX = (data.handleY - b) / a;
+                } else {
+                    data.handleY = y
+                }
+            } else if (handle === "sw") {
+                const a = -originalHeight / originalWidth;
+                const b = 0
+                const f = (x: number) => a * x + b;
+                const y = f(data.handleX);
+                if (y > data.handleY) {
+                    data.handleX = (data.handleY - b) / a;
+                } else {
+                    data.handleY = y
+                }
+            } else if (handle === "nw") {
+                const a = originalHeight / originalWidth;
+                const b = 0
+                const f = (x: number) => a * x + b;
+                const y = f(data.handleX);
+                if (y < data.handleY) {
+                    data.handleX = (data.handleY - b) / a;
+                } else {
+                    data.handleY = y
+                }
+            } else if (handle === "ne") {
+                const a = -originalHeight / originalWidth;
+                const b = 0
+                const f = (x: number) => a * x + b;
+                const y = f(data.handleX);
+                if (y < data.handleY) {
+                    data.handleX = (data.handleY - b) / a;
+                } else {
+                    data.handleY = y
+                }
+            }
+        }
+
         if (handle === "nw") {
-            r.x = originalX + data.handleX;
-            r.y = originalY + data.handleY;
-            r.width = originalWidth - data.handleX;
-            r.height = originalHeight - data.handleY;
+            r.x = originalX - data.handleX;
+            r.y = originalY - data.handleY;
+            r.width = originalWidth + data.handleX;
+            r.height = originalHeight + data.handleY;
         } else if (handle === "ne") {
-            r.x = originalX;
-            r.y = originalY;
+            r.y = originalY - data.handleY;
             r.width = originalWidth - data.handleX;
-            r.height = originalHeight - data.handleY;
+            r.height = originalHeight + data.handleY;
         } else if (handle === "se") {
-            r.x = originalX;
-            r.y = originalY;
             r.width = originalWidth - data.handleX;
             r.height = originalHeight - data.handleY;
         } else if (handle === "sw") {
-            r.x = originalX + data.handleX;
-            r.y = originalY + data.handleY;
-        } else if (handle === "n") {
-            r.y = originalY + data.handleY;
+            r.x = originalX - data.handleX;
+            r.width = originalWidth + data.handleX;
             r.height = originalHeight - data.handleY;
+        } else if (handle === "n") {
+            r.y = originalY - data.handleY;
+            r.height = originalHeight + data.handleY;
         } else if (handle === "e") {
             r.width = originalWidth - data.handleX;
         } else if (handle === "s") {
             r.height = originalHeight - data.handleY;
         } else if (handle === "w") {
-            r.x = originalX + data.handleX;
-            r.width = originalWidth - data.handleX;
+            r.x = originalX - data.handleX;
+            r.width = originalWidth + data.handleX;
         } else {
             console.error("Invalid handle type");
         }
+
 
         const factorWidth = r.width / originalWidth
         const factorHeight = r.height / originalHeight
@@ -105,13 +149,18 @@
 
         rectanglesBeforeScale!.forEach(rb => {
             if (rb.id === r.id) return
-            const rectangle = rectangles.find(r => r.id === rb.id)
+            const rectangle = selectedRectangles.find(r => r.id === rb.id)
             if (!rectangle) return
             rectangle.x = rb.x * factorX
             rectangle.y = rb.y * factorY
             rectangle.width = rb.width * factorWidth
             rectangle.height = rb.height * factorHeight
         })
+    }
+
+    function onScaleFinished() {
+        normalizeRectangles();
+        rectanglesBeforeScale = undefined;
     }
 
     function normalizeRectangles() {
@@ -150,8 +199,8 @@
                         zoom={zoom}
                         onSelect={(withShift) => select(rectangle, withShift)}
                         onMove={(deltaX, deltaY) => onMove(rectangle, deltaX, deltaY)}
-                        onScale={(handle, delta) => onScale(rectangle, handle, delta)}
-                        onScaleFinished={normalizeRectangles}
+                        onScale={(handle, delta) => onScale(rectangle, true, handle, delta)}
+                        onScaleFinished={onScaleFinished}
                         isSelected={selectedRectangles.includes(rectangle)}
                         bind:rect={rectangles[i]}
                 />
