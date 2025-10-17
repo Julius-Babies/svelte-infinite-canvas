@@ -2,16 +2,18 @@
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
     import {onMount} from "svelte";
-    import {isShiftPressed} from "$lib/state/keyboard";
+    import {isCtrlPressed, isShiftPressed} from "$lib/state/keyboard";
 	
 	let { children } = $props();
 
     function onKeyDown(e: KeyboardEvent) {
         if (e.key === "Shift") isShiftPressed.set(true);
+        if (e.key === "Ctrl") isCtrlPressed.set(true)
     }
 
     function onKeyUp(e: KeyboardEvent) {
         if (e.key === "Shift") isShiftPressed.set(false);
+        if (e.key === "Ctrl") isCtrlPressed.set(false)
     }
 
     onMount(() => {

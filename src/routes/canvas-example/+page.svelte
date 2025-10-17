@@ -55,6 +55,7 @@
     function onScale(
         r: RectangleType,
         proportionally: boolean,
+        centered: boolean,
         handle: HandleType,
         data: {
             handleX: number;
@@ -114,32 +115,39 @@
         if (handle === "nw") {
             r.x = originalX - data.handleX;
             r.y = originalY - data.handleY;
-            r.width = originalWidth + data.handleX;
-            r.height = originalHeight + data.handleY;
+            r.width = originalWidth + data.handleX * (centered ? 2 : 1);
+            r.height = originalHeight + data.handleY * (centered ? 2 : 1);
         } else if (handle === "ne") {
+            r.x = originalX + (data.handleX * (centered ? 1 : 0));
             r.y = originalY - data.handleY;
-            r.width = originalWidth - data.handleX;
-            r.height = originalHeight + data.handleY;
+            r.width = originalWidth - data.handleX * (centered ? 2 : 1);
+            r.height = originalHeight + data.handleY * (centered ? 2 : 1);
         } else if (handle === "se") {
-            r.width = originalWidth - data.handleX;
-            r.height = originalHeight - data.handleY;
+            r.x = originalX + data.handleX * (centered ? 1 : 0);
+            r.y = originalY + data.handleY * (centered ? 1 : 0);
+            r.width = originalWidth - data.handleX * (centered ? 2 : 1);
+            r.height = originalHeight - data.handleY * (centered ? 2 : 1);
         } else if (handle === "sw") {
             r.x = originalX - data.handleX;
-            r.width = originalWidth + data.handleX;
-            r.height = originalHeight - data.handleY;
+            r.y = originalY + data.handleY * (centered ? 1 : 0);
+            r.width = originalWidth + data.handleX * (centered ? 2 : 1);
+            r.height = originalHeight - data.handleY * (centered ? 2 : 1);
         } else if (handle === "n") {
-            r.y = originalY - data.handleY;
-            r.height = originalHeight + data.handleY;
+            r.y = originalY - data.handleY * (centered ? 1 : 0);
+            r.height = originalHeight + data.handleY * (centered ? 2 : 1);
         } else if (handle === "e") {
-            r.width = originalWidth - data.handleX;
+            r.width = originalWidth - data.handleX * (centered ? 2 : 1);
+            r.x = originalX + data.handleX * (centered ? 1 : 0);
         } else if (handle === "s") {
-            r.height = originalHeight - data.handleY;
+            r.height = originalHeight - data.handleY * (centered ? 2 : 1);
+            r.y = originalY + data.handleY * (centered ? 1 : 0);
         } else if (handle === "w") {
-            r.x = originalX - data.handleX;
-            r.width = originalWidth + data.handleX;
+            r.width = originalWidth + data.handleX * (centered ? 2 : 1);
+            r.x = originalX - data.handleX * (centered ? 1 : 0);
         } else {
             console.error("Invalid handle type");
         }
+
 
 
         const factorWidth = r.width / originalWidth
@@ -199,7 +207,7 @@
                         zoom={zoom}
                         onSelect={(withShift) => select(rectangle, withShift)}
                         onMove={(deltaX, deltaY) => onMove(rectangle, deltaX, deltaY)}
-                        onScale={(handle, shift, delta) => onScale(rectangle, shift, handle, delta)}
+                        onScale={(handle, shift, ctrl, delta) => onScale(rectangle, shift, ctrl, handle, delta)}
                         onScaleFinished={onScaleFinished}
                         isSelected={selectedRectangles.includes(rectangle)}
                         bind:rect={rectangles[i]}

@@ -1,7 +1,8 @@
 <script lang="ts">
     import type {HandleType, Rectangle} from "./script";
     import {onMount} from "svelte";
-    import {isShiftPressed} from "$lib/state/keyboard";
+    import {isCtrlPressed, isShiftPressed} from "$lib/state/keyboard";
+    import {get} from "svelte/store";
 
     let {
         rect = $bindable(),
@@ -17,7 +18,7 @@
         zoom: number,
         onSelect: (withShift: boolean) => void,
         onMove: (x: number, y: number) => void,
-        onScale: (handle: HandleType, isShiftPressed: boolean, mouse: { handleX: number, handleY: number }) => void,
+        onScale: (handle: HandleType, isShiftPressed: boolean, isCtrlPressed: boolean, mouse: { handleX: number, handleY: number }) => void,
         onScaleFinished: () => void,
     } = $props();
 
@@ -103,7 +104,7 @@
         if (!isMouseDownStartingPosition) return;
         wasDragging = true;
         if (selectedHandle && canvasMousePosition) {
-            onScale(selectedHandle.type, e.shiftKey, { handleX: canvasMousePosition.x, handleY: canvasMousePosition.y });
+            onScale(selectedHandle.type, e.shiftKey, e.ctrlKey, { handleX: canvasMousePosition.x, handleY: canvasMousePosition.y });
         }
         else onMove(e.movementX / zoom, e.movementY / zoom);
     }
@@ -122,12 +123,19 @@
     onMount(() => {
         const unsubscribeShift = isShiftPressed.subscribe(value => {
             if (isMouseDownStartingPosition && selectedHandle) {
-                onScale(selectedHandle.type, value, { handleX: canvasMousePosition.x, handleY: canvasMousePosition.y });
+                onScale(selectedHandle.type, value, get(isCtrlPressed), { handleX: canvasMousePosition.x, handleY: canvasMousePosition.y });
+            }
+        })
+
+        const unsubscribeCtrl = isCtrlPressed.subscribe(value => {
+            if (isMouseDownStartingPosition && selectedHandle) {
+                onScale(selectedHandle.type, get(isShiftPressed), value, { handleX: canvasMousePosition.x, handleY: canvasMousePosition.y });
             }
         })
 
         return () => {
             unsubscribeShift();
+            unsubscribeCtrl();
         }
     })
 </script>
