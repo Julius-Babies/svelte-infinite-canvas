@@ -44,6 +44,7 @@
             originX = x;
             originY = y;
             e.preventDefault();
+            document.body.style.cursor = "grabbing";
         }
     }
 
@@ -60,6 +61,7 @@
             dragging = false;
             pointerId = null;
             try { (e.target as Element).releasePointerCapture(e.pointerId); } catch {}
+            document.body.style.cursor = "unset";
         }
     }
 
