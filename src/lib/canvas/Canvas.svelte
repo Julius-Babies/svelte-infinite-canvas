@@ -7,6 +7,7 @@
         y = $bindable(0),
         minScale = 0.1,
         maxScale = 10,
+        onCanvasClick,
         children,
     }: {
         scale?: number,
@@ -14,6 +15,7 @@
         y?: number,
         minScale?: number,
         maxScale?: number,
+        onCanvasClick?: (e: MouseEvent) => void,
         children?: import('svelte').Snippet,
     } = $props();
 
@@ -505,11 +507,17 @@
 <div
         bind:this={containerRef}
         class="canvas-container"
+        role="application"
         onwheel={onWheel}
         onpointerdown={onPointerDown}
         onpointermove={onPointerMove}
         onpointerup={onPointerUp}
         onpointercancel={onPointerUp}
+        onclick={(e) => {
+            if (onCanvasClick && e.target === e.currentTarget) {
+                onCanvasClick(e);
+            }
+        }}
 >
     <div class="dot-bg" style={bgStyle}></div>
 

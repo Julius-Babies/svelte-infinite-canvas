@@ -1,16 +1,9 @@
 <script lang="ts">
     import Canvas from "$lib/canvas/Canvas.svelte";
+    import type {Rectangle as RectangleType} from "./script";
+    import Rectangle from "./Rectangle.svelte";
 
-    interface Rectangle {
-        id: number;
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-        color: string
-    }
-
-    let rectangles: Rectangle[] = $state([
+    let rectangles: RectangleType[] = $state([
         {
             "id": 0,
             "x": 80,
@@ -28,15 +21,37 @@
             "color": "#9f8e23"
         }
     ]);
+
+    let selectedRectangles: RectangleType[] = $state([]);
+
+    function select(rectangle: RectangleType, withShift: boolean) {
+        if (withShift) {
+            if (selectedRectangles.includes(rectangle)) {
+                selectedRectangles = selectedRectangles.filter(r => r !== rectangle);
+            } else {
+                selectedRectangles = [...selectedRectangles, rectangle];
+            }
+        } else {
+            selectedRectangles = [rectangle];
+        }
+    }
 </script>
 
 <div class="relative w-full h-full">
-    <Canvas>
-        {#each rectangles as rectangle}
+    <Canvas
+            onCanvasClick={() => selectedRectangles = []}
+    >
+        {#each rectangles as rectangle, i}
             <div
                     class="absolute"
-                    style="top: {rectangle.y}px; left: {rectangle.x}px; width: {rectangle.width}px; height: {rectangle.height}px; background-color: {rectangle.color};"
-            ></div>
+                    style="top: {rectangle.y}px; left: {rectangle.x}px; width: {rectangle.width}px; height: {rectangle.height}px"
+            >
+                <Rectangle
+                        onSelect={(withShift) => select(rectangle, withShift)}
+                        isSelected={selectedRectangles.includes(rectangle)}
+                        bind:rect={rectangles[i]}
+                />
+            </div>
         {/each}
     </Canvas>
 
