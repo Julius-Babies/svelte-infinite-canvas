@@ -1,7 +1,5 @@
 <script lang="ts">
     import type {HandleType, Rectangle} from "./script";
-    import {onMount} from "svelte";
-    import {isShiftPressed} from "$lib/state/keyboard";
 
     let {
         rect = $bindable(),
@@ -17,7 +15,7 @@
         zoom: number,
         onSelect: (withShift: boolean) => void,
         onMove: (x: number, y: number) => void,
-        onScale: (handle: HandleType, delta: { x: number, y: number }) => void,
+        onScale: (handle: HandleType, mouse: { handleX: number, handleY: number }) => void,
         onScaleFinished: () => void,
     } = $props();
 
@@ -73,24 +71,6 @@
         ]
     });
 
-    onMount(() => {
-        const unsubscribeShift = isShiftPressed.subscribe(shift => {
-            if (isMouseDownStartingPosition && selectedHandle) {
-                // Object is being scaled
-                onScale(selectedHandle.type, {
-                    x: rect.width,
-                    y: rect.height,
-                })
-                const draggedX = (isMouseDownStartingPosition.x - elementPositionBeforeDrag!.x) / zoom;
-                const draggedY = (isMouseDownStartingPosition.y - elementPositionBeforeDrag!.y) / zoom;
-            }
-        })
-
-        return () => {
-            unsubscribeShift();
-        }
-    })
-
 
     let selectedHandle: Handle | undefined = $state();
     let isMouseDownStartingPosition: { x: number, y: number } | null = $state(null);
@@ -118,7 +98,11 @@
     function onMouseMove(e: MouseEvent) {
         if (!isMouseDownStartingPosition) return;
         wasDragging = true;
-        if (selectedHandle) onScale(selectedHandle.type, {x: e.movementX / zoom, y: e.movementY / zoom});
+        if (selectedHandle && elementPositionBeforeDrag) {
+            const mouseX = isMouseDownStartingPosition.x - e.clientX;
+            const mouseY = isMouseDownStartingPosition.y - e.clientY;
+            onScale(selectedHandle.type, { handleX: mouseX / zoom, handleY: mouseY / zoom });
+        }
         else onMove(e.movementX / zoom, e.movementY / zoom);
     }
 

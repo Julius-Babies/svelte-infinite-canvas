@@ -41,6 +41,7 @@
             selectedRectangles = [rectangle];
         }
     }
+
     function onMove(rectangle: RectangleType, deltaX: number, deltaY: number) {
         if (!selectedRectangles.includes(rectangle)) selectedRectangles = [rectangle];
         selectedRectangles.forEach(r => {
@@ -49,68 +50,68 @@
         })
     }
 
-    function onScale(rectangle: RectangleType, handle: HandleType, delta: { x: number, y: number }) {
-        const beforeWidth = rectangle.width;
-        const beforeHeight = rectangle.height;
-        let deltaX = 0;
-        let deltaY = 0;
-        let deltaWidth = 0;
-        let deltaHeight = 0;
+    let rectanglesBeforeScale: RectangleType[] | undefined;
 
-        switch (handle) {
-            case "nw":
-                deltaX = delta.x;
-                deltaY = delta.y;
-                deltaWidth = -delta.x;
-                deltaHeight = -delta.y;
-                break;
-            case "n":
-                deltaY = delta.y;
-                deltaHeight = -delta.y;
-                break;
-            case "ne":
-                deltaY = delta.y;
-                deltaWidth = delta.x;
-                deltaHeight = -delta.y;
-                break;
-            case "e":
-                deltaWidth = delta.x;
-                break;
-            case "se":
-                deltaWidth = delta.x;
-                deltaHeight = delta.y;
-                break;
-            case "s":
-                deltaHeight = delta.y;
-                break;
-            case "sw":
-                deltaX = delta.x;
-                deltaWidth = -delta.x;
-                deltaHeight = delta.y;
-                break;
-            case "w":
-                deltaX = delta.x;
-                deltaWidth = -delta.x;
-                break;
+    function onScale(
+        r: RectangleType,
+        handle: HandleType,
+        data: {
+            handleX: number;
+            handleY: number;
+        }
+    ) {
+        if (!rectanglesBeforeScale) rectanglesBeforeScale = Object.create([...rectangles.map(r => ({...r}))])
+        const originalWidth = rectanglesBeforeScale!.find(rb => rb.id === r.id)!.width
+        const originalHeight = rectanglesBeforeScale!.find(rb => rb.id === r.id)!.height
+        const originalX = rectanglesBeforeScale!.find(rb => rb.id === r.id)!.x
+        const originalY = rectanglesBeforeScale!.find(rb => rb.id === r.id)!.y
+
+        if (handle === "nw") {
+            r.x = originalX + data.handleX;
+            r.y = originalY + data.handleY;
+            r.width = originalWidth - data.handleX;
+            r.height = originalHeight - data.handleY;
+        } else if (handle === "ne") {
+            r.x = originalX;
+            r.y = originalY;
+            r.width = originalWidth - data.handleX;
+            r.height = originalHeight - data.handleY;
+        } else if (handle === "se") {
+            r.x = originalX;
+            r.y = originalY;
+            r.width = originalWidth - data.handleX;
+            r.height = originalHeight - data.handleY;
+        } else if (handle === "sw") {
+            r.x = originalX + data.handleX;
+            r.y = originalY + data.handleY;
+        } else if (handle === "n") {
+            r.y = originalY + data.handleY;
+            r.height = originalHeight - data.handleY;
+        } else if (handle === "e") {
+            r.width = originalWidth - data.handleX;
+        } else if (handle === "s") {
+            r.height = originalHeight - data.handleY;
+        } else if (handle === "w") {
+            r.x = originalX + data.handleX;
+            r.width = originalWidth - data.handleX;
+        } else {
+            console.error("Invalid handle type");
         }
 
-        rectangle.x += deltaX;
-        rectangle.y += deltaY;
-        rectangle.width += deltaWidth;
-        rectangle.height += deltaHeight;
+        const factorWidth = r.width / originalWidth
+        const factorHeight = r.height / originalHeight
+        const factorX = r.x / originalX
+        const factorY = r.y / originalY
 
-        selectedRectangles
-            .filter(r => r !== rectangle)
-            .forEach(r => {
-                const rBeforeWidth = r.width;
-                const rBeforeHeight = r.height;
-                const rWidthFactor = rBeforeWidth / beforeWidth;
-                const rHeightFactor = rBeforeHeight / beforeHeight;
-                r.x += (rWidthFactor * deltaX);
-                r.y += (rHeightFactor * deltaY);
-                r.width += (rWidthFactor * deltaWidth);
-                r.height += (rHeightFactor * deltaHeight);
-            })
+        rectanglesBeforeScale!.forEach(rb => {
+            if (rb.id === r.id) return
+            const rectangle = rectangles.find(r => r.id === rb.id)
+            if (!rectangle) return
+            rectangle.x = rb.x * factorX
+            rectangle.y = rb.y * factorY
+            rectangle.width = rb.width * factorWidth
+            rectangle.height = rb.height * factorHeight
+        })
     }
 
     function normalizeRectangles() {
