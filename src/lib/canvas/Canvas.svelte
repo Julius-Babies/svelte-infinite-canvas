@@ -132,7 +132,6 @@
         }
     }
 
-
     // Wheel handler (zoom with ctrl/meta, pan otherwise)
     function onWheel(e: WheelEvent) {
         e.preventDefault();
@@ -203,14 +202,14 @@
 
         if (!dragging || e.pointerId !== pointerId) return;
 
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
+        const dx = (e.clientX - startX) / scale;
+        const dy = (e.clientY - startY) / scale;
         x = originX + dx;
         y = originY + dy;
-        // Keep targets in sync so keyboard animation doesn't fight
         targetX = x;
         targetY = y;
     }
+
 
     // Pointer up handler
     function onPointerUp(e: PointerEvent) {
@@ -379,20 +378,20 @@
             if (!containerRef) return;
             const rect = containerRef.getBoundingClientRect();
             // animated zoom to center
-            zoomToPoint(rect.width / 2, rect.height / 2, 0.1, true);
+            zoomToPoint(rect.width / 2, rect.height / 2, 0.3, true);
             e.preventDefault();
             return;
         }
         if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
             if (!containerRef) return;
             const rect = containerRef.getBoundingClientRect();
-            zoomToPoint(rect.width / 2, rect.height / 2, -0.1, true);
+            zoomToPoint(rect.width / 2, rect.height / 2, -0.3, true);
             e.preventDefault();
             return;
         }
 
         // Arrow keys / WASD for nudging
-        const nudgeDistance = e.shiftKey ? 50 : 10;
+        const nudgeDistance = e.shiftKey ? 150 : 70;
         let handled = true;
 
         switch (e.code) {
