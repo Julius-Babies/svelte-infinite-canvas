@@ -506,7 +506,7 @@
     <!-- Use translate(x,y) then scale(s) so mapping is: screen = world*scale + (x,y).
          This ensures world-to-screen math in zoomToPoint stays valid and the mouse
          remains the center of zoom. -->
-    <div class="content" style={`transform: translate(${x}px, ${y}px) scale(${scale});`}>
+    <div class="content relative" style={`transform: translate(${x}px, ${y}px) scale(${scale});`}>
         {@render children?.()}
     </div>
 </div>
@@ -525,7 +525,6 @@
         position: absolute;
         inset: 0;
         pointer-events: none;
-        z-index: 0;
         background-color: #f8f9fa;
     }
 
@@ -534,6 +533,5 @@
         top: 0;
         left: 0;
         transform-origin: 0 0;
-        z-index: 1;
     }
 </style>
