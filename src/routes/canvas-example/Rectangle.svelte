@@ -20,7 +20,7 @@
         onSelect: (withShift: boolean) => void,
         onMove: (isCtrlPressed: boolean, x: number, y: number) => void,
         onMoveFinished: () => void,
-        onScale: (handle: HandleType, isShiftPressed: boolean, isMetaPressed: boolean, mouse: { handleX: number, handleY: number }) => void,
+        onScale: (handle: HandleType, isShiftPressed: boolean, isCtrlPressed: boolean, isMetaPressed: boolean, mouse: { handleX: number, handleY: number }) => void,
         onScaleFinished: () => void,
     } = $props();
 
@@ -106,7 +106,7 @@
         if (!isMouseDownStartingPosition) return;
         wasDragging = true;
         if (selectedHandle && canvasMousePosition) {
-            onScale(selectedHandle.type, e.shiftKey, e.metaKey, { handleX: canvasMousePosition.x, handleY: canvasMousePosition.y });
+            onScale(selectedHandle.type, e.shiftKey, e.ctrlKey, e.metaKey, { handleX: canvasMousePosition.x, handleY: canvasMousePosition.y });
         }
         else onMove(e.ctrlKey, canvasMousePosition.x, canvasMousePosition.y);
     }
@@ -126,18 +126,19 @@
     onMount(() => {
         const unsubscribeShift = isShiftPressed.subscribe(value => {
             if (isMouseDownStartingPosition && selectedHandle) {
-                onScale(selectedHandle.type, value, get(isMetaPressed), { handleX: canvasMousePosition.x, handleY: canvasMousePosition.y });
+                onScale(selectedHandle.type, value, get(isCtrlPressed), get(isMetaPressed), { handleX: canvasMousePosition.x, handleY: canvasMousePosition.y });
             }
         })
 
         const unsubscribeMeta = isMetaPressed.subscribe(value => {
             if (isMouseDownStartingPosition && selectedHandle) {
-                onScale(selectedHandle.type, get(isShiftPressed), value, { handleX: canvasMousePosition.x, handleY: canvasMousePosition.y });
+                onScale(selectedHandle.type, get(isShiftPressed), get(isCtrlPressed), value, { handleX: canvasMousePosition.x, handleY: canvasMousePosition.y });
             }
         })
 
         const unsubscribeCtrl = isCtrlPressed.subscribe(value => {
             if (isMouseDownStartingPosition && !selectedHandle) onMove(value, canvasMousePosition.x, canvasMousePosition.y);
+            else if (isMouseDownStartingPosition && selectedHandle) onScale(selectedHandle.type, get(isShiftPressed), value, get(isMetaPressed), { handleX: canvasMousePosition.x, handleY: canvasMousePosition.y })
         })
 
         return () => {

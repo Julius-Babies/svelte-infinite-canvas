@@ -2,14 +2,15 @@
     import Canvas from "$lib/canvas/Canvas.svelte";
     import type {HandleType, Rectangle as RectangleType} from "./script";
     import Rectangle from "./Rectangle.svelte";
+    import {calculateScaling} from "./util";
 
     let zoom = $state(1);
 
     let rectangles: RectangleType[] = $state([
         {
             "id": 0,
-            "x": 0,
-            "y": 0,
+            "x": 35,
+            "y": 55,
             "width": 100,
             "height": 300,
             "color": "#ff00ff",
@@ -18,9 +19,9 @@
         },
         {
             "id": 1,
-            "x": 326,
-            "y": 92,
-            "width": 800,
+            "x": 293,
+            "y": 150,
+            "width": 499,
             "height": 240,
             "color": "#9f8e23",
             "isFlippedHorizontally": false,
@@ -177,6 +178,7 @@
         r: RectangleType,
         proportionally: boolean,
         centered: boolean,
+        withSnap: boolean,
         handle: HandleType,
         data: {
             handleX: number;
@@ -188,6 +190,93 @@
         const originalHeight = rectanglesBeforeScale!.find(rb => rb.id === r.id)!.height
         const originalX = rectanglesBeforeScale!.find(rb => rb.id === r.id)!.x
         const originalY = rectanglesBeforeScale!.find(rb => rb.id === r.id)!.y
+
+        const snappingLinesInProcess = {
+            x: [] as number[],
+            y: [] as number[]
+        }
+
+        const naiveResult = calculateScaling(
+            originalX,
+            originalY,
+            originalWidth,
+            originalHeight,
+            centered,
+            handle,
+            data.handleX,
+            data.handleY,
+            false
+        )
+
+        const naiveResultNormalized = calculateScaling(
+            originalX,
+            originalY,
+            originalWidth,
+            originalHeight,
+            centered,
+            handle,
+            data.handleX,
+            data.handleY,
+            true
+        )
+
+        console.log("Naive result: ", naiveResult)
+        console.log("Naive result normalized: ", naiveResultNormalized)
+
+        if (withSnap) {
+            const SNAP_DISTANCE = 16/zoom;
+
+            const isHandleEast = handle === "ne" || handle === "e" || handle === "se"
+            const isHandleWest = handle === "nw" || handle === "w" || handle === "sw"
+            const isHandleNorth = handle === "n" || handle === "nw" || handle === "ne"
+            const isHandleSouth = handle === "s" || handle === "sw" || handle === "se"
+
+            const canChangeWest = handle === "nw" || handle === "w" || handle === "sw" || (centered && (handle === "ne" || handle === "e" || handle === "se"))
+            const canChangeEast = handle === "ne" || handle === "e" || handle === "se" || (centered && (handle === "nw" || handle === "w" || handle === "sw"))
+            const canChangeNorth = handle === "n" || handle === "nw" || handle === "ne" || (centered && (handle === "s" || handle === "sw" || handle === "se"))
+            const canChangeSouth = handle === "s" || handle === "sw" || handle === "se" || (centered && (handle === "n" || handle === "nw" || handle === "ne"))
+
+            console.log(isHandleWest, canChangeWest)
+            if (isHandleWest || canChangeWest) {
+                const nearestXSnap = snappingLines.x.sort((a, b) => Math.abs(a - naiveResultNormalized.scaledX) - Math.abs(b - naiveResultNormalized.scaledX))[0]
+                const nearestXSnapDistance = Math.abs(nearestXSnap - naiveResultNormalized.scaledX)
+                if (nearestXSnapDistance <= SNAP_DISTANCE) {
+                    const direction = nearestXSnap - naiveResultNormalized.scaledX > 0 ? 1 : -1
+                    const sign = isHandleWest ? -1 : 1
+                    data.handleX += sign * direction * nearestXSnapDistance
+                    snappingLinesInProcess.x.push(nearestXSnap);
+                }
+            } else if (isHandleEast || canChangeEast) {
+                const nearestXSnap = snappingLines.x.sort((a, b) => Math.abs(a - naiveResultNormalized.scaledX - naiveResultNormalized.scaledWidth) - Math.abs(b - naiveResultNormalized.scaledX - naiveResultNormalized.scaledWidth))[0]
+                const nearestXSnapDistance = Math.abs(nearestXSnap - naiveResultNormalized.scaledX - naiveResultNormalized.scaledWidth)
+                if (nearestXSnapDistance <= SNAP_DISTANCE) {
+                    const direction = nearestXSnap - naiveResultNormalized.scaledX - naiveResultNormalized.scaledWidth > 0 ? 1 : -1
+                    const sign = isHandleEast ? -1 : 1
+                    data.handleX += sign * direction * nearestXSnapDistance
+                    snappingLinesInProcess.x.push(nearestXSnap);
+                }
+            }
+
+            if (isHandleNorth || canChangeNorth) {
+                const nearestYSnap = snappingLines.y.sort((a, b) => Math.abs(a - naiveResultNormalized.scaledY) - Math.abs(b - naiveResultNormalized.scaledY))[0]
+                const nearestYSnapDistance = Math.abs(nearestYSnap - naiveResultNormalized.scaledY)
+                if (nearestYSnapDistance <= SNAP_DISTANCE) {
+                    const direction = nearestYSnap - naiveResultNormalized.scaledY > 0 ? 1 : -1
+                    const sign = isHandleNorth ? -1 : 1
+                    data.handleY += sign * direction * nearestYSnapDistance
+                    snappingLinesInProcess.y.push(nearestYSnap);
+                }
+            } else if (isHandleSouth || canChangeSouth) {
+                const nearestYSnap = snappingLines.y.sort((a, b) => Math.abs(a - naiveResultNormalized.scaledY - naiveResultNormalized.scaledHeight) - Math.abs(b - naiveResultNormalized.scaledY - naiveResultNormalized.scaledHeight))[0]
+                const nearestYSnapDistance = Math.abs(nearestYSnap - naiveResultNormalized.scaledY - naiveResultNormalized.scaledHeight)
+                if (nearestYSnapDistance <= SNAP_DISTANCE) {
+                    const direction = nearestYSnap - naiveResultNormalized.scaledY - naiveResultNormalized.scaledHeight > 0 ? 1 : -1
+                    const sign = isHandleSouth ? -1 : 1
+                    data.handleY += sign * direction * nearestYSnapDistance
+                    snappingLinesInProcess.y.push(nearestYSnap);
+                }
+            }
+        }
 
         if (proportionally && (handle === "nw" || handle === "ne" || handle === "se" || handle === "sw")) {
             if (handle === "se") {
@@ -254,7 +343,7 @@
             r.width = originalWidth + data.handleX * (centered ? 2 : 1);
             r.height = originalHeight - data.handleY * (centered ? 2 : 1);
         } else if (handle === "n") {
-            r.y = originalY - data.handleY * (centered ? 1 : 0);
+            r.y = originalY - data.handleY;
             r.height = originalHeight + data.handleY * (centered ? 2 : 1);
         } else if (handle === "e") {
             r.width = originalWidth - data.handleX * (centered ? 2 : 1);
@@ -264,12 +353,10 @@
             r.y = originalY + data.handleY * (centered ? 1 : 0);
         } else if (handle === "w") {
             r.width = originalWidth + data.handleX * (centered ? 2 : 1);
-            r.x = originalX - data.handleX * (centered ? 1 : 0);
+            r.x = originalX - data.handleX;
         } else {
             console.error("Invalid handle type");
         }
-
-
 
         const factorWidth = r.width / originalWidth
         const factorHeight = r.height / originalHeight
@@ -285,11 +372,17 @@
             rectangle.width = rb.width * factorWidth
             rectangle.height = rb.height * factorHeight
         })
+
+        usedSnappingLines = snappingLinesInProcess;
     }
 
     function onScaleFinished() {
         normalizeRectangles();
         rectanglesBeforeScale = undefined;
+        usedSnappingLines = {
+            x: [],
+            y: []
+        }
     }
 
     function normalizeRectangles() {
@@ -344,7 +437,7 @@
                         onSelect={(withShift) => select(rectangle, withShift)}
                         onMove={(ctrl, mouseX, mouseY) => onMove(rectangle, mouseX, mouseY, !ctrl)}
                         onMoveFinished={onMoveFinished}
-                        onScale={(handle, shift, ctrl, delta) => onScale(rectangle, shift, ctrl, handle, delta)}
+                        onScale={(handle, shift, ctrl, meta, delta) => onScale(rectangle, shift, meta, !ctrl, handle, delta)}
                         onScaleFinished={onScaleFinished}
                         isSelected={selectedRectangles.includes(rectangle)}
                         bind:rect={rectangles[i]}
