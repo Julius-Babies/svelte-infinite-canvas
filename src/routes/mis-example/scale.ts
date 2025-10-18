@@ -23,7 +23,7 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
     const originalX = originalPosition.x;
     const originalY = originalPosition.y;
 
-    const naiveResultNormalized = calculateScaling(
+    const naiveResult = calculateScaling(
         originalX,
         originalY,
         originalWidth,
@@ -32,7 +32,7 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
         handle,
         mouseX - mouseBeforeScale!.x,
         mouseY - mouseBeforeScale!.y,
-        true
+        false
     )
 
     const selectedIds = get(selectedComponents).map(c => c.id);
@@ -93,9 +93,19 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
         const canChangeSouth = handle === "s" || handle === "sw" || handle === "se" || (centered && (handle === "n" || handle === "nw" || handle === "ne"))
 
         if (isHandleWest || canChangeWest) {
-            const nearestXSnap = snappingLines.x.sort((a, b) => Math.abs(a - naiveResultNormalized.scaledX) - Math.abs(b - naiveResultNormalized.scaledX))[0]
-            const nearestXSnapDistance = nearestXSnap - naiveResultNormalized.scaledX
-            if (Math.abs(nearestXSnapDistance) <= SNAP_DISTANCE) {
+            const nearestXSnap = snappingLines.x.sort((a, b) => {
+                if (proportional) {
+                    const da = Math.hypot(mouseXAfterProportional - a, mouseYAfterProportional - diagonalThroughHandleFunction(a));
+                    const db = Math.hypot(mouseXAfterProportional - b, mouseYAfterProportional - diagonalThroughHandleFunction(b));
+                    return da - db;
+                }
+                return Math.abs(a - naiveResult.scaledX) - Math.abs(b - naiveResult.scaledX);
+            })[0]
+            const nearestXSnapDistance = nearestXSnap - naiveResult.scaledX
+            const allowSnap = proportional
+                ? Math.hypot(mouseXAfterProportional - nearestXSnap, mouseYAfterProportional - diagonalThroughHandleFunction(nearestXSnap)) <= SNAP_DISTANCE
+                : Math.abs(nearestXSnapDistance) <= SNAP_DISTANCE
+            if (allowSnap) {
                 mouseXAfterProportional += nearestXSnapDistance * (isHandleWest ? 1 : -1)
                 if (proportional) {
                     mouseYAfterProportional = diagonalThroughHandleFunction(mouseXAfterProportional)
@@ -105,9 +115,19 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
             }
         }
         if ((isHandleEast || canChangeEast) && !isXSnap) {
-            const nearestXSnap = snappingLines.x.sort((a, b) => Math.abs(a - naiveResultNormalized.scaledX - naiveResultNormalized.scaledWidth) - Math.abs(b - naiveResultNormalized.scaledX - naiveResultNormalized.scaledWidth))[0]
-            const nearestXSnapDistance = nearestXSnap - naiveResultNormalized.scaledX - naiveResultNormalized.scaledWidth
-            if (Math.abs(nearestXSnapDistance) <= SNAP_DISTANCE) {
+            const nearestXSnap = snappingLines.x.sort((a, b) => {
+                if (proportional) {
+                    const da = Math.hypot(mouseXAfterProportional - a, mouseYAfterProportional - diagonalThroughHandleFunction(a));
+                    const db = Math.hypot(mouseXAfterProportional - b, mouseYAfterProportional - diagonalThroughHandleFunction(b));
+                    return da - db;
+                }
+                return Math.abs(a - naiveResult.scaledX - naiveResult.scaledWidth) - Math.abs(b - naiveResult.scaledX - naiveResult.scaledWidth);
+            })[0]
+            const nearestXSnapDistance = nearestXSnap - naiveResult.scaledX - naiveResult.scaledWidth
+            const allowSnap = proportional
+                ? Math.hypot(mouseXAfterProportional - nearestXSnap, mouseYAfterProportional - diagonalThroughHandleFunction(nearestXSnap)) <= SNAP_DISTANCE
+                : Math.abs(nearestXSnapDistance) <= SNAP_DISTANCE
+            if (allowSnap) {
                 mouseXAfterProportional += nearestXSnapDistance * (isHandleEast ? 1 : -1)
                 if (proportional) {
                     mouseYAfterProportional = diagonalThroughHandleFunction(mouseXAfterProportional)
@@ -117,9 +137,19 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
         }
 
         if (isHandleNorth || canChangeNorth) {
-            const nearestYSnap = snappingLines.y.sort((a, b) => Math.abs(a - naiveResultNormalized.scaledY) - Math.abs(b - naiveResultNormalized.scaledY))[0]
-            const nearestYSnapDistance = nearestYSnap - naiveResultNormalized.scaledY
-            if (Math.abs(nearestYSnapDistance) <= SNAP_DISTANCE) {
+            const nearestYSnap = snappingLines.y.sort((a, b) => {
+                if (proportional) {
+                    const da = Math.hypot(mouseXAfterProportional - diagonalThroughHandleFunctionInverse(a), mouseYAfterProportional - a);
+                    const db = Math.hypot(mouseXAfterProportional - diagonalThroughHandleFunctionInverse(b), mouseYAfterProportional - b);
+                    return da - db;
+                }
+                return Math.abs(a - naiveResult.scaledY) - Math.abs(b - naiveResult.scaledY);
+            })[0]
+            const nearestYSnapDistance = nearestYSnap - naiveResult.scaledY
+            const allowSnap = proportional
+                ? Math.hypot(mouseXAfterProportional - diagonalThroughHandleFunctionInverse(nearestYSnap), mouseYAfterProportional - nearestYSnap) <= SNAP_DISTANCE
+                : Math.abs(nearestYSnapDistance) <= SNAP_DISTANCE
+            if (allowSnap) {
                 mouseYAfterProportional += nearestYSnapDistance * (isHandleNorth ? 1 : -1)
                 if (proportional) {
                     mouseXAfterProportional = diagonalThroughHandleFunctionInverse(mouseYAfterProportional)
@@ -129,9 +159,19 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
             }
         }
         if ((isHandleSouth || canChangeSouth) && !isYSnap) {
-            const nearestYSnap = snappingLines.y.sort((a, b) => Math.abs(a - naiveResultNormalized.scaledY - naiveResultNormalized.scaledHeight) - Math.abs(b - naiveResultNormalized.scaledY - naiveResultNormalized.scaledHeight))[0]
-            const nearestYSnapDistance = nearestYSnap - naiveResultNormalized.scaledY - naiveResultNormalized.scaledHeight
-            if (Math.abs(nearestYSnapDistance) <= SNAP_DISTANCE) {
+            const nearestYSnap = snappingLines.y.sort((a, b) => {
+                if (proportional) {
+                    const da = Math.hypot(mouseXAfterProportional - diagonalThroughHandleFunctionInverse(a), mouseYAfterProportional - a);
+                    const db = Math.hypot(mouseXAfterProportional - diagonalThroughHandleFunctionInverse(b), mouseYAfterProportional - b);
+                    return da - db;
+                }
+                return Math.abs(a - naiveResult.scaledY - naiveResult.scaledHeight) - Math.abs(b - naiveResult.scaledY - naiveResult.scaledHeight);
+            })[0]
+            const nearestYSnapDistance = nearestYSnap - naiveResult.scaledY - naiveResult.scaledHeight
+            const allowSnap = proportional
+                ? Math.hypot(mouseXAfterProportional - diagonalThroughHandleFunctionInverse(nearestYSnap), mouseYAfterProportional - nearestYSnap) <= SNAP_DISTANCE
+                : Math.abs(nearestYSnapDistance) <= SNAP_DISTANCE
+            if (allowSnap) {
                 mouseYAfterProportional += nearestYSnapDistance * (isHandleSouth ? 1 : -1)
                 if (proportional) {
                     mouseXAfterProportional = diagonalThroughHandleFunctionInverse(mouseYAfterProportional)
@@ -154,7 +194,7 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
         originalY,
         originalWidth,
         originalHeight,
-        false,
+        centered,
         handle,
         deltaX,
         deltaY,
@@ -195,6 +235,29 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
 
 export function stopScale() {
     console.log("stop scale")
+
+    // Normalize any negative width/height for all currently selected components
+    const selectedIds = get(selectedComponents).map(c => c.id);
+    components.update(list => list.map(c => {
+        if (!selectedIds.includes(c.id)) return c;
+        const p = c.position;
+        if (p.width < 0) {
+            p.x += p.width;
+            p.width = -p.width;
+        }
+        if (p.height < 0) {
+            p.y += p.height;
+            p.height = -p.height;
+        }
+        return c;
+    }))
+
+    // Re-sync selected components with the normalized values
+    selectedComponents.update(selected => {
+        const ids = selected.map(c => c.id)
+        return get(components).filter(c => ids.includes(c.id))
+    })
+
     componentsBeforeScale = null;
     mouseBeforeScale = null;
     usedSnappingLines.set(null);
@@ -269,7 +332,8 @@ function calculateDiagonalThroughHandle(position: Position, handle: HandleType) 
     const ySign = handle.includes("n") ? -1 : 1;
     const slopeSign = handle.includes("n") !== handle.includes("w") ? -1 : 1;
 
-    const slope = slopeSign * position.height / position.width;
+    const safeWidth = position.width === 0 ? 1e-6 : position.width;
+    const slope = slopeSign * position.height / safeWidth;
     const offset = ySign === 1 ? position.y + position.height : position.y;
     const shift = handle.includes("w") ? -position.x : -(position.x + position.width);
 

@@ -10,8 +10,8 @@
 
 <svg
         class="absolute"
-        style={`width: ${ellipse.position.width}px; height: ${ellipse.position.height}px; top: 0; left: 0; background-color: ${ellipse.color}; border-radius: 50%;`}
+        style={`width: 100%; height: 100%; top: 0; left: 0;`}
 >
-    <ellipse rx={ellipse.position.width} ry={ellipse.position.height} cx={ellipse.position.width / 2} cy={ellipse.position.height / 2} fill={ellipse.color} />
+    <ellipse rx={Math.abs(ellipse.position.width) / 2} ry={Math.abs(ellipse.position.height) / 2} cx={Math.abs(ellipse.position.width) / 2} cy={Math.abs(ellipse.position.height) / 2} fill={ellipse.color} />
 
 </svg>

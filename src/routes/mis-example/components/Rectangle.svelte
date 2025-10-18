@@ -10,7 +10,7 @@
 
 <div
         class="absolute"
-        style={`width: ${rectangle.position.width}px; height: ${rectangle.position.height}px; top: 0; left: 0; background-color: ${rectangle.color};`}
+        style={`width: 100%; height: 100%; top: 0; left: 0; background-color: ${rectangle.color};`}
 >
 
 </div>

@@ -88,7 +88,7 @@
         aria-hidden="true"
         onmousedown={onComponentMouseDown}
         class="absolute"
-        style="left: {component.position.x}px; top: {component.position.y}px; width: {component.position.width}px; height: {component.position.height}px;"
+        style="left: {Math.min(component.position.x, component.position.x + component.position.width)}px; top: {Math.min(component.position.y, component.position.y + component.position.height)}px; width: {Math.abs(component.position.width)}px; height: {Math.abs(component.position.height)}px;"
 >
     {#if component.type === "rectangle"}
         <Rectangle rectangle={component}/>
