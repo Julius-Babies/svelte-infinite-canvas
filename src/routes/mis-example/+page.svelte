@@ -65,14 +65,14 @@
                     {#if $usedSnappingLines && $usedSnappingLines.frameId === frame.id}
                         {#each $usedSnappingLines.x as x}
                             <div
-                                    class="absolute top-0 left-0 h-dvw border w-[{1/$canvasScale}px] border-red-500 border-dashed"
+                                    class="z-20 absolute top-0 left-0 h-dvw border w-[{1/$canvasScale}px] border-red-500 border-dashed"
                                     style="transform: translateX({x}px)"
                             >
                             </div>
                         {/each}
                         {#each $usedSnappingLines.y as y}
                             <div
-                                    class="absolute top-0 left-0 h-[{1/$canvasScale}px] border w-full border-red-500 border-dashed"
+                                    class="z-[2] absolute top-0 left-0 h-[{1/$canvasScale}px] border w-full border-red-500 border-dashed"
                                     style="transform: translateY({y}px)"
                             >
                             </div>

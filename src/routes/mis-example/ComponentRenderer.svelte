@@ -102,14 +102,14 @@
 
     {#if isSelected}
         <div
-                class="absolute w-full h-full border border-b-black"
+                class="absolute w-full h-full border border-b-black z-[3]"
         >
         </div>
         {#each handles.handles as handle}
             <button
                     onmousedown={(e) => onMouseDownHandle(e, handle.type)}
                     aria-label="Handle"
-                    class="absolute"
+                    class="absolute z-[3]"
                     style="left: {handle.x}px; top: {handle.y}px; width: {handles.handleSize}px; height: {handles.handleSize}px; cursor: {handle.cursor};"
             >
                 <div
