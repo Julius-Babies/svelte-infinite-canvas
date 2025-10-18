@@ -27,3 +27,5 @@ export function screenToWorld(
 
     return { worldX, worldY };
 }
+
+export interface KeyboardModifiers { shift: boolean; ctrl: boolean; meta: boolean }

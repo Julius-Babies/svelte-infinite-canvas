@@ -2,24 +2,61 @@
     import type {Component} from "./component";
     import Rectangle from "./components/Rectangle.svelte";
     import {getHandles} from "./handle";
-    import {canvasScale} from "./state";
+    import {canvasMousePosition, canvasScale} from "./state";
+    import {setMouseBeforeMove} from "./move";
 
     let {
         component,
         isSelected,
-        onclick
+        onclick,
+        onmove,
+        onmovedone,
     }: {
         component: Component,
         isSelected: boolean,
-        onclick?: (e: MouseEvent) => void
+        onclick?: (e: MouseEvent) => void,
+        onmove?: () => void,
+        onmovedone?: () => void,
     } = $props();
 
     let handles = $derived(getHandles($canvasScale, component.position.width, component.position.height))
+
+    let isComponentMouseDown = $state(false);
+
+    function onComponentMouseDown(e: MouseEvent) {
+        isComponentMouseDown = true;
+        setMouseBeforeMove($canvasMousePosition.x, $canvasMousePosition.y)
+        e.preventDefault();
+        e.stopPropagation();
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+    }
+
+    let wasDragged = $state(false);
+    function onMouseMove() {
+        if (!isComponentMouseDown) return;
+        if (onmove) wasDragged = true;
+        onmove?.()
+    }
+
+    function onMouseUp(e: MouseEvent) {
+        if (wasDragged) {
+            onmovedone?.()
+            console.log("moved");
+            wasDragged = false;
+        } else {
+            onclick?.(e);
+        }
+
+        isComponentMouseDown = false;
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+    }
 </script>
 
 <div
         aria-hidden="true"
-        onclick={onclick}
+        onmousedown={onComponentMouseDown}
         class="absolute"
         style="left: {component.position.x}px; top: {component.position.y}px; width: {component.position.width}px; height: {component.position.height}px;"
 >
@@ -33,7 +70,8 @@
         >
         </div>
         {#each handles.handles as handle}
-            <div
+            <button
+                    aria-label="Handle"
                     class="absolute"
                     style="left: {handle.x}px; top: {handle.y}px; width: {handles.handleSize}px; height: {handles.handleSize}px; cursor: {handle.cursor};"
             >
@@ -42,7 +80,7 @@
                         style="zoom: {1/$canvasScale};"
                 ></div>
 
-            </div>
+            </button>
         {/each}
     {/if}
 </div>

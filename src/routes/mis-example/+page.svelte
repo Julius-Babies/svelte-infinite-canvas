@@ -14,6 +14,8 @@
     import {onMount} from "svelte";
     import {mouse} from "$lib/state/mouse";
     import {onSelect, selectedComponents} from "./selection";
+    import {move, stopMove} from "./move";
+    import {get} from "svelte/store";
 
     let canvasContainer: HTMLDivElement | undefined = $state(undefined);
 
@@ -49,6 +51,8 @@
 
         {#each $frames as frame}
             <div
+                    onclick={() => selectedComponents.set([])}
+                    aria-hidden="true"
                     class="absolute bg-white rounded-4xl shadow-xl"
                     style="left: {frame.position.x}px; top: {frame.position.y}px; width: {frame.position.width}px; height: {frame.position.height}px;"
             >
@@ -63,6 +67,8 @@
                     component={component}
                     isSelected={$selectedComponents.includes(component)}
                     onclick={(e) => onSelect(component, e.shiftKey)}
+                    onmove={() => move(component, get(canvasMousePosition).x, get(canvasMousePosition).y)}
+                    onmovedone={stopMove}
             />
         {/each}
 
