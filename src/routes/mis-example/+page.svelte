@@ -16,7 +16,8 @@
     import {onSelect, selectedComponents} from "./selection";
     import {move, stopMove, usedSnappingLines} from "./move";
     import {get} from "svelte/store";
-    import {isCtrlPressed} from "$lib/state/keyboard";
+    import {isCtrlPressed, isMetaPressed, isShiftPressed} from "$lib/state/keyboard";
+    import {scale, stopScale} from "./scale";
 
     let canvasContainer: HTMLDivElement | undefined = $state(undefined);
 
@@ -88,6 +89,8 @@
                     onclick={(e) => onSelect(component, e.shiftKey)}
                     onmove={() => move(component, get(canvasMousePosition).x, get(canvasMousePosition).y, !get(isCtrlPressed))}
                     onmovedone={stopMove}
+                    onscale={(handle) => scale(component, handle, get(canvasMousePosition).x, get(canvasMousePosition).y, !get(isCtrlPressed), get(isMetaPressed), get(isShiftPressed))}
+                    onscaledone={stopScale}
             />
         {/each}
 

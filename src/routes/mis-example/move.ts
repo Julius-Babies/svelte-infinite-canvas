@@ -18,7 +18,6 @@ export function setMouseBeforeMove(x: number, y: number) {
 export function move(draggedComponent: Component, mouseX: number, mouseY: number, snap: boolean) {
     if (!get(selectedComponents).includes(draggedComponent)) selectedComponents.set([draggedComponent]);
     if (!componentsBeforeMove) {
-        console.log("Setting components before move");
         componentsBeforeMove = Object.create([...get(selectedComponents)]);
     }
 
@@ -207,7 +206,6 @@ export function move(draggedComponent: Component, mouseX: number, mouseY: number
         return get(components).filter(c => ids.includes(c.id))
     })
 
-    console.log("Used snapping lines", usedSnappingLinesInProcess);
     usedSnappingLines.set(usedSnappingLinesInProcess);
 }
 

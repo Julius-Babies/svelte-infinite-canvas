@@ -196,18 +196,6 @@
             y: [] as number[]
         }
 
-        const naiveResult = calculateScaling(
-            originalX,
-            originalY,
-            originalWidth,
-            originalHeight,
-            centered,
-            handle,
-            data.handleX,
-            data.handleY,
-            false
-        )
-
         const naiveResultNormalized = calculateScaling(
             originalX,
             originalY,
@@ -219,9 +207,6 @@
             data.handleY,
             true
         )
-
-        console.log("Naive result: ", naiveResult)
-        console.log("Naive result normalized: ", naiveResultNormalized)
 
         if (withSnap) {
             const SNAP_DISTANCE = 16/zoom;

@@ -5,6 +5,7 @@
     import {canvasMousePosition, canvasScale} from "./state";
     import {setMouseBeforeMove} from "./move";
     import Ellipse from "./components/Ellipse.svelte";
+    import {setMouseBeforeScale} from "./scale";
 
     let {
         component,
@@ -12,7 +13,8 @@
         onclick,
         onmove,
         onmovedone,
-        onscale
+        onscale,
+        onscaledone,
     }: {
         component: Component,
         isSelected: boolean,
@@ -20,6 +22,7 @@
         onmove?: () => void,
         onmovedone?: () => void,
         onscale?: (handle: HandleType) => void,
+        onscaledone?: () => void,
     } = $props();
 
     let handles = $derived(getHandles($canvasScale, component.position.width, component.position.height))
@@ -27,6 +30,7 @@
     let isComponentMouseDown = $state(false);
 
     function onComponentMouseDown(e: MouseEvent) {
+        if (e.button !== 0) return;
         isComponentMouseDown = true;
         setMouseBeforeMove($canvasMousePosition.x, $canvasMousePosition.y)
         e.preventDefault();
@@ -55,6 +59,29 @@
         document.removeEventListener("mousemove", onMouseMoveComponent);
         document.removeEventListener("mouseup", onMouseUpComponent);
     }
+
+    let selectedHandle = $state<HandleType | null>(null);
+    function onMouseDownHandle(e: MouseEvent, handle: HandleType) {
+        if (e.button !== 0) return;
+        selectedHandle = handle;
+        setMouseBeforeScale($canvasMousePosition.x, $canvasMousePosition.y)
+        document.addEventListener("mouseup", onMouseUpHandle);
+        document.addEventListener("mousemove", onMouseMoveHandle);
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    function onMouseMoveHandle() {
+        if (!selectedHandle) return;
+        if (onscale) onscale(selectedHandle);
+    }
+
+    function onMouseUpHandle() {
+        selectedHandle = null;
+        if (onscaledone) onscaledone();
+        document.removeEventListener("mouseup", onMouseUpHandle);
+        document.removeEventListener("mousemove", onMouseMoveHandle);
+    }
 </script>
 
 <div
@@ -76,6 +103,7 @@
         </div>
         {#each handles.handles as handle}
             <button
+                    onmousedown={(e) => onMouseDownHandle(e, handle.type)}
                     aria-label="Handle"
                     class="absolute"
                     style="left: {handle.x}px; top: {handle.y}px; width: {handles.handleSize}px; height: {handles.handleSize}px; cursor: {handle.cursor};"
