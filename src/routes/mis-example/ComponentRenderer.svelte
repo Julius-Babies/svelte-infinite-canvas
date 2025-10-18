@@ -49,7 +49,6 @@
     function onMouseUpComponent(e: MouseEvent) {
         if (wasDragged) {
             onmovedone?.()
-            console.log("moved");
             wasDragged = false;
         } else {
             onclick?.(e);

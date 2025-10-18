@@ -28,8 +28,6 @@ export function move(draggedComponent: Component, mouseX: number, mouseY: number
         height: Math.max(...componentsBeforeMove!.map(r => r.position.y + r.position.height)) - Math.min(...componentsBeforeMove!.map(r => r.position.y))
     }
 
-    console.log("Bounding rect", boundingRect);
-
     let usedSnappingLinesInProcess = null
 
     const frame = get(frames).find(f => f.id === draggedComponent.frame);
@@ -64,8 +62,6 @@ export function move(draggedComponent: Component, mouseX: number, mouseY: number
             x: boundingRect.x + mouseX - mouseBeforeMove!.x,
             y: boundingRect.y + mouseY - mouseBeforeMove!.y
         }
-
-        console.log("Theoretical new position", theoreticalNewPosition);
 
         const SNAP_DISTANCE = 16/get(canvasScale);
 

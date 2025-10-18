@@ -9,13 +9,13 @@
 
     function onKeyDown(e: KeyboardEvent) {
         if (e.key === "Shift") isShiftPressed.set(true);
-        if (e.key === "Ctrl") isCtrlPressed.set(true)
+        if (e.key === "Control") isCtrlPressed.set(true)
         if (e.key === "Meta") isMetaPressed.set(true)
     }
 
     function onKeyUp(e: KeyboardEvent) {
         if (e.key === "Shift") isShiftPressed.set(false);
-        if (e.key === "Ctrl") isCtrlPressed.set(false)
+        if (e.key === "Control") isCtrlPressed.set(false)
         if (e.key === "Meta") isMetaPressed.set(false)
     }
 

@@ -286,8 +286,6 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
 }
 
 export function stopScale() {
-    console.log("stop scale")
-
     // Normalize any negative width/height for all currently selected components
     const selectedIds = get(selectedComponents).map(c => c.id);
     components.update(list => list.map(c => {

@@ -93,7 +93,6 @@
             }
 
             const SNAP_DISTANCE = 16/zoom;
-            console.log("Snap distance: ", SNAP_DISTANCE)
 
             let isXSnapped = false;
             let isYSnapped = false;
@@ -221,7 +220,6 @@
             const canChangeNorth = handle === "n" || handle === "nw" || handle === "ne" || (centered && (handle === "s" || handle === "sw" || handle === "se"))
             const canChangeSouth = handle === "s" || handle === "sw" || handle === "se" || (centered && (handle === "n" || handle === "nw" || handle === "ne"))
 
-            console.log(isHandleWest, canChangeWest)
             if (isHandleWest || canChangeWest) {
                 const nearestXSnap = snappingLines.x.sort((a, b) => Math.abs(a - naiveResultNormalized.scaledX) - Math.abs(b - naiveResultNormalized.scaledX))[0]
                 const nearestXSnapDistance = Math.abs(nearestXSnap - naiveResultNormalized.scaledX)
