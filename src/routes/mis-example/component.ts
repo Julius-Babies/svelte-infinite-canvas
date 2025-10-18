@@ -6,10 +6,14 @@ export interface BaseComponent {
     position: Position
 }
 
-export type Component = Rectangle;
+export type Component = Rectangle | Ellipse;
 
 export interface Rectangle extends BaseComponent {
     color: string;
     type: "rectangle";
 }
 
+export interface Ellipse extends BaseComponent {
+    color: string;
+    type: "ellipse";
+}

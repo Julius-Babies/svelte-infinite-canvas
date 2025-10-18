@@ -4,6 +4,7 @@
     import {getHandles} from "./handle";
     import {canvasMousePosition, canvasScale} from "./state";
     import {setMouseBeforeMove} from "./move";
+    import Ellipse from "./components/Ellipse.svelte";
 
     let {
         component,
@@ -62,7 +63,8 @@
 >
     {#if component.type === "rectangle"}
         <Rectangle rectangle={component}/>
-        <span class="absolute">{component.frame ?? "free"}</span>
+    {:else if component.type === "ellipse"}
+        <Ellipse ellipse={component}/>
     {/if}
 
     {#if isSelected}

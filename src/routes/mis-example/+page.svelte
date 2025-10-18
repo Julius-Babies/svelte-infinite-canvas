@@ -9,7 +9,7 @@
         components,
         frames, screenToWorld
     } from "./state";
-    import {addRectangle} from "./toolbar";
+    import {addEllipse, addRectangle} from "./toolbar";
     import ComponentRenderer from "./ComponentRenderer.svelte";
     import {onMount} from "svelte";
     import {mouse} from "$lib/state/mouse";
@@ -102,6 +102,7 @@
                 <RectangleHorizontal class="w-6 h-6" />
             </button>
             <button
+                    onclick={addEllipse}
                     class="rounded-full h-10 w-10 flex justify-center items-center transition-colors hover:bg-gray-200 cursor-pointer"
             >
                 <Circle class="w-6 h-6" />
