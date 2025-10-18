@@ -13,6 +13,7 @@
     import ComponentRenderer from "./ComponentRenderer.svelte";
     import {onMount} from "svelte";
     import {mouse} from "$lib/state/mouse";
+    import {onSelect, selectedComponents} from "./selection";
 
     let canvasContainer: HTMLDivElement | undefined = $state(undefined);
 
@@ -43,6 +44,7 @@
             bind:x={$canvasOffsetX}
             bind:y={$canvasOffsetY}
             bind:container={canvasContainer}
+            onCanvasClick={() => onSelect(null, false)}
     >
 
         {#each $frames as frame}
@@ -57,7 +59,11 @@
         {/each}
 
         {#each $components as component}
-            <ComponentRenderer {component} />
+            <ComponentRenderer
+                    component={component}
+                    isSelected={$selectedComponents.includes(component)}
+                    onclick={(e) => onSelect(component, e.shiftKey)}
+            />
         {/each}
 
     </Canvas>
