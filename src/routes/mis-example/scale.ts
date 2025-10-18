@@ -2,7 +2,6 @@ import type {Component} from "./component";
 import type {HandleType} from "./handle";
 import {get} from "svelte/store";
 import {selectedComponents} from "./selection";
-import {calculateScaling} from "../canvas-example/util";
 import {canvasScale, components, frames} from "./state";
 import {usedSnappingLines} from "./move";
 
@@ -14,7 +13,7 @@ export function setMouseBeforeScale(x: number, y: number) {
 
 export function scale(draggedComponent: Component, handle: HandleType, mouseX: number, mouseY: number, snap: boolean, centered: boolean, proportional: boolean) {
     if (!componentsBeforeScale) {
-        componentsBeforeScale = Object.create([...get(selectedComponents)]);
+        componentsBeforeScale = get(selectedComponents).map(c => ({ ...c, position: { ...c.position } }));
     }
 
     const originalPosition = componentsBeforeScale!.find(component => component.id === draggedComponent.id)!.position;
@@ -22,20 +21,9 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
     const originalHeight = originalPosition.height;
     const originalX = originalPosition.x;
     const originalY = originalPosition.y;
-    
-    let deltaX = mouseX - mouseBeforeScale!.x;
-    let deltaY = mouseY - mouseBeforeScale!.y;
-    calculateScaling(
-        originalX,
-        originalY,
-        originalWidth,
-        originalHeight,
-        centered,
-        handle,
-        deltaX,
-        deltaY,
-        false
-    );
+
+    console.log(originalPosition)
+
     const naiveResultNormalized = calculateScaling(
         originalX,
         originalY,
@@ -43,15 +31,17 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
         originalHeight,
         centered,
         handle,
-        deltaX,
-        deltaY,
+        mouseX - mouseBeforeScale!.x,
+        mouseY - mouseBeforeScale!.y,
         true
     )
 
+    const selectedIds = get(selectedComponents).map(c => c.id);
+
     let usedSnappingLinesInProcess = null
-    
     const frame = get(frames).find(f => f.id === draggedComponent.frame);
     if (snap && frame) {
+
         const SNAP_DISTANCE = 16/get(canvasScale);
 
         usedSnappingLinesInProcess = {
@@ -59,8 +49,6 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
             x: [] as number[],
             y: [] as number[],
         }
-
-        const selectedIds = get(selectedComponents).map(c => c.id);
         const snapComponents = get(components).filter(c => !selectedIds.includes(c.id));
         const snappingLines = {
             x: [
@@ -91,43 +79,41 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
         const canChangeNorth = handle === "n" || handle === "nw" || handle === "ne" || (centered && (handle === "s" || handle === "sw" || handle === "se"))
         const canChangeSouth = handle === "s" || handle === "sw" || handle === "se" || (centered && (handle === "n" || handle === "nw" || handle === "ne"))
 
-        console.log(isHandleWest, canChangeWest)
+        let isXSnap = false;
+        let isYSnap = false;
+
         if (isHandleWest || canChangeWest) {
             const nearestXSnap = snappingLines.x.sort((a, b) => Math.abs(a - naiveResultNormalized.scaledX) - Math.abs(b - naiveResultNormalized.scaledX))[0]
-            const nearestXSnapDistance = Math.abs(nearestXSnap - naiveResultNormalized.scaledX)
-            if (nearestXSnapDistance <= SNAP_DISTANCE) {
-                const direction = nearestXSnap - naiveResultNormalized.scaledX > 0 ? 1 : -1
-                const sign = isHandleWest ? -1 : 1
-                deltaX += sign * direction * nearestXSnapDistance
+            const nearestXSnapDistance = nearestXSnap - naiveResultNormalized.scaledX
+            if (Math.abs(nearestXSnapDistance) <= SNAP_DISTANCE) {
+                mouseX += nearestXSnapDistance * (isHandleWest ? 1 : -1)
+                isXSnap = true
                 usedSnappingLinesInProcess.x.push(nearestXSnap);
             }
-        } else if (isHandleEast || canChangeEast) {
+        }
+        if ((isHandleEast || canChangeEast) && !isXSnap) {
             const nearestXSnap = snappingLines.x.sort((a, b) => Math.abs(a - naiveResultNormalized.scaledX - naiveResultNormalized.scaledWidth) - Math.abs(b - naiveResultNormalized.scaledX - naiveResultNormalized.scaledWidth))[0]
-            const nearestXSnapDistance = Math.abs(nearestXSnap - naiveResultNormalized.scaledX - naiveResultNormalized.scaledWidth)
-            if (nearestXSnapDistance <= SNAP_DISTANCE) {
-                const direction = nearestXSnap - naiveResultNormalized.scaledX - naiveResultNormalized.scaledWidth > 0 ? 1 : -1
-                const sign = isHandleEast ? -1 : 1
-                deltaX += sign * direction * nearestXSnapDistance
+            const nearestXSnapDistance = nearestXSnap - naiveResultNormalized.scaledX - naiveResultNormalized.scaledWidth
+            if (Math.abs(nearestXSnapDistance) <= SNAP_DISTANCE) {
+                mouseX += nearestXSnapDistance * (isHandleEast ? 1 : -1)
                 usedSnappingLinesInProcess.x.push(nearestXSnap);
             }
         }
 
         if (isHandleNorth || canChangeNorth) {
             const nearestYSnap = snappingLines.y.sort((a, b) => Math.abs(a - naiveResultNormalized.scaledY) - Math.abs(b - naiveResultNormalized.scaledY))[0]
-            const nearestYSnapDistance = Math.abs(nearestYSnap - naiveResultNormalized.scaledY)
-            if (nearestYSnapDistance <= SNAP_DISTANCE) {
-                const direction = nearestYSnap - naiveResultNormalized.scaledY > 0 ? 1 : -1
-                const sign = isHandleNorth ? -1 : 1
-                deltaY += sign * direction * nearestYSnapDistance
+            const nearestYSnapDistance = nearestYSnap - naiveResultNormalized.scaledY
+            if (Math.abs(nearestYSnapDistance) <= SNAP_DISTANCE) {
+                mouseY += nearestYSnapDistance * (isHandleNorth ? 1 : -1)
                 usedSnappingLinesInProcess.y.push(nearestYSnap);
+                isYSnap = true;
             }
-        } else if (isHandleSouth || canChangeSouth) {
+        }
+        if ((isHandleSouth || canChangeSouth) && !isYSnap) {
             const nearestYSnap = snappingLines.y.sort((a, b) => Math.abs(a - naiveResultNormalized.scaledY - naiveResultNormalized.scaledHeight) - Math.abs(b - naiveResultNormalized.scaledY - naiveResultNormalized.scaledHeight))[0]
-            const nearestYSnapDistance = Math.abs(nearestYSnap - naiveResultNormalized.scaledY - naiveResultNormalized.scaledHeight)
-            if (nearestYSnapDistance <= SNAP_DISTANCE) {
-                const direction = nearestYSnap - naiveResultNormalized.scaledY - naiveResultNormalized.scaledHeight > 0 ? 1 : -1
-                const sign = isHandleSouth ? -1 : 1
-                deltaY += sign * direction * nearestYSnapDistance
+            const nearestYSnapDistance = nearestYSnap - naiveResultNormalized.scaledY - naiveResultNormalized.scaledHeight
+            if (Math.abs(nearestYSnapDistance) <= SNAP_DISTANCE) {
+                mouseY += nearestYSnapDistance * (isHandleSouth ? 1 : -1)
                 usedSnappingLinesInProcess.y.push(nearestYSnap);
             }
         }
@@ -177,45 +163,25 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
         }
     }
 
-    let newX = 0;
-    let newY = 0;
-    let newWidth = 0;
-    let newHeight = 0;
-    if (handle === "nw") {
-        newX = originalX - deltaX;
-        newY = originalY - deltaY;
-        newWidth = originalWidth + deltaX * (centered ? 2 : 1);
-        newHeight = originalHeight + deltaY * (centered ? 2 : 1);
-    } else if (handle === "ne") {
-        newX = originalX + (deltaX * (centered ? 1 : 0));
-        newY = originalY - deltaY;
-        newWidth = originalWidth - deltaX * (centered ? 2 : 1);
-        newHeight = originalHeight + deltaY * (centered ? 2 : 1);
-    } else if (handle === "se") {
-        newX = originalX + deltaX * (centered ? 1 : 0);
-        newY = originalY + deltaY * (centered ? 1 : 0);
-        newWidth = originalWidth - deltaX * (centered ? 2 : 1);
-        newHeight = originalHeight - deltaY * (centered ? 2 : 1);
-    } else if (handle === "sw") {
-        newX = originalX - deltaX;
-        newY = originalY + deltaY * (centered ? 1 : 0);
-        newWidth = originalWidth + deltaX * (centered ? 2 : 1);
-        newHeight = originalHeight - deltaY * (centered ? 2 : 1);
-    } else if (handle === "n") {
-        newY = originalY - deltaY;
-        newHeight = originalHeight + deltaY * (centered ? 2 : 1);
-    } else if (handle === "e") {
-        newWidth = originalWidth - deltaX * (centered ? 2 : 1);
-        newX = originalX + deltaX * (centered ? 1 : 0);
-    } else if (handle === "s") {
-        newHeight = originalHeight - deltaY * (centered ? 2 : 1);
-        newY = originalY + deltaY * (centered ? 1 : 0);
-    } else if (handle === "w") {
-        newWidth = originalWidth + deltaX * (centered ? 2 : 1);
-        newX = originalX - deltaX;
-    } else {
-        console.error("Invalid handle type");
-    }
+    let deltaX = mouseX - mouseBeforeScale!.x;
+    let deltaY = mouseY - mouseBeforeScale!.y;
+
+    let {
+        scaledX: newX,
+        scaledY: newY,
+        scaledWidth: newWidth,
+        scaledHeight: newHeight
+    } = calculateScaling(
+        originalX,
+        originalY,
+        originalWidth,
+        originalHeight,
+        centered,
+        handle,
+        deltaX,
+        deltaY,
+        false,
+    )
 
     const factorWidth = newWidth / originalWidth
     const factorHeight = newHeight / originalHeight
@@ -224,6 +190,7 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
 
     components.update(components => {
         return components.map(c => {
+            if (!selectedIds.includes(c.id)) return c;
             if (c.id === draggedComponent.id) {
                 c.position.x = newX
                 c.position.y = newY
@@ -249,7 +216,73 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
 }
 
 export function stopScale() {
+    console.log("stop scale")
     componentsBeforeScale = null;
     mouseBeforeScale = null;
     usedSnappingLines.set(null);
+}
+
+function calculateScaling(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    centered: boolean,
+    handle: HandleType,
+    deltaX: number,
+    deltaY: number,
+    normalize: boolean = false,
+): { scaledX: number; scaledY: number; scaledWidth: number; scaledHeight: number } {
+    let scaledX = x;
+    let scaledY = y;
+    let scaledWidth = width;
+    let scaledHeight = height;
+    if (handle === "nw") {
+        scaledX = x + deltaX;
+        scaledY = y + deltaY;
+        scaledWidth = width - deltaX * (centered ? 2 : 1);
+        scaledHeight = height - deltaY * (centered ? 2 : 1);
+    } else if (handle === "ne") {
+        scaledX = x - (deltaX * (centered ? 1 : 0));
+        scaledY = y + deltaY;
+        scaledWidth = width + deltaX * (centered ? 2 : 1);
+        scaledHeight = height - deltaY * (centered ? 2 : 1);
+    } else if (handle === "se") {
+        scaledX = x - deltaX * (centered ? 1 : 0);
+        scaledY = y - deltaY * (centered ? 1 : 0);
+        scaledWidth = width + deltaX * (centered ? 2 : 1);
+        scaledHeight = height + deltaY * (centered ? 2 : 1);
+    } else if (handle === "sw") {
+        scaledX = x + deltaX;
+        scaledY = y - deltaY * (centered ? 1 : 0);
+        scaledWidth = width - deltaX * (centered ? 2 : 1);
+        scaledHeight = height + deltaY * (centered ? 2 : 1);
+    } else if (handle === "n") {
+        scaledY = y + deltaY;
+        scaledHeight = height - deltaY * (centered ? 2 : 1);
+    } else if (handle === "e") {
+        scaledWidth = width + deltaX * (centered ? 2 : 1);
+        scaledX = x - deltaX * (centered ? 1 : 0);
+    } else if (handle === "s") {
+        scaledHeight = height + deltaY * (centered ? 2 : 1);
+        scaledY = y - deltaY * (centered ? 1 : 0);
+    } else if (handle === "w") {
+        scaledWidth = width - deltaX * (centered ? 2 : 1);
+        scaledX = x + deltaX;
+    } else {
+        console.error("Invalid handle type");
+    }
+
+    if (normalize) {
+        if (scaledWidth < 0) {
+            scaledX += scaledWidth;
+            scaledWidth = Math.abs(scaledWidth);
+        }
+        if (scaledHeight < 0) {
+            scaledY += scaledHeight;
+            scaledHeight = Math.abs(scaledHeight);
+        }
+    }
+
+    return { scaledX, scaledY, scaledWidth, scaledHeight };
 }
