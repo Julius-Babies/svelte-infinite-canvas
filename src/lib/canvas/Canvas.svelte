@@ -8,6 +8,7 @@
         minScale = 0.1,
         maxScale = 10,
         onCanvasClick,
+        container = $bindable(undefined),
         children,
     }: {
         scale?: number,
@@ -16,11 +17,11 @@
         minScale?: number,
         maxScale?: number,
         onCanvasClick?: (e: MouseEvent) => void,
+        container?: HTMLElement | null,
         children?: import('svelte').Snippet,
     } = $props();
 
     // State management
-    let containerRef: HTMLDivElement;
     let dragging = false;
     let spacePressed = false;
     let pointerId: number | null = null;
@@ -95,9 +96,9 @@
     // Zoom to a specific point. If animate=true, set targets and start animation,
     // otherwise apply immediately.
     function zoomToPoint(clientX: number, clientY: number, delta: number, animate = false) {
-        if (!containerRef) return;
+        if (!container) return;
 
-        const rect = containerRef.getBoundingClientRect();
+        const rect = container.getBoundingClientRect();
 
         // Mouse position relative to container (in screen space)
         const mouseX = clientX - rect.left;
@@ -300,8 +301,8 @@
                 y: (points[0].y + points[1].y) / 2
             };
 
-            if (!containerRef) return;
-            const rect = containerRef.getBoundingClientRect();
+            if (!container) return;
+            const rect = container.getBoundingClientRect();
 
             // Zoom around pinch center
             const centerX = pinchCenter.x - rect.left;
@@ -375,16 +376,16 @@
 
         // Zoom (+ / -)
         if (e.code === 'Equal' || e.code === 'NumpadAdd') {
-            if (!containerRef) return;
-            const rect = containerRef.getBoundingClientRect();
+            if (!container) return;
+            const rect = container.getBoundingClientRect();
             // animated zoom to center
             zoomToPoint(rect.width / 2, rect.height / 2, 0.3, true);
             e.preventDefault();
             return;
         }
         if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
-            if (!containerRef) return;
-            const rect = containerRef.getBoundingClientRect();
+            if (!container) return;
+            const rect = container.getBoundingClientRect();
             zoomToPoint(rect.width / 2, rect.height / 2, -0.3, true);
             e.preventDefault();
             return;
@@ -503,7 +504,7 @@
 </script>
 
 <div
-        bind:this={containerRef}
+        bind:this={container}
         class="canvas-container"
         role="application"
         aria-hidden="true"

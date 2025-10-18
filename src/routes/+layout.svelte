@@ -3,6 +3,7 @@
 	import favicon from '$lib/assets/favicon.svg';
     import {onMount} from "svelte";
     import {isCtrlPressed, isMetaPressed, isShiftPressed} from "$lib/state/keyboard";
+    import {mouse} from "$lib/state/mouse";
 	
 	let { children } = $props();
 
@@ -18,12 +19,18 @@
         if (e.key === "Meta") isMetaPressed.set(false)
     }
 
+    function onMouseMove(e: MouseEvent) {
+        mouse.set({ x: e.clientX, y: e.clientY })
+    }
+
     onMount(() => {
         document.addEventListener("keydown", onKeyDown);
         document.addEventListener("keyup", onKeyUp);
+        document.addEventListener("mousemove", onMouseMove);
         return () => {
             document.removeEventListener("keydown", onKeyDown);
             document.removeEventListener("keyup", onKeyUp);
+            document.removeEventListener("mousemove", onMouseMove);
         }
     })
 </script>
