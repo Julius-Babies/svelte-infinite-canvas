@@ -96,6 +96,10 @@
         <Ellipse ellipse={component}/>
     {/if}
 
+    <div class="absolute text-2xl" style="zoom: {1/$canvasScale};">
+        {component.position.height / component.position.width}
+    </div>
+
     {#if isSelected}
         <div
                 class="absolute w-full h-full border border-b-black"

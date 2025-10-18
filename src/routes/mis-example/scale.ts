@@ -4,6 +4,7 @@ import {get} from "svelte/store";
 import {selectedComponents} from "./selection";
 import {canvasScale, components, frames} from "./state";
 import {usedSnappingLines} from "./move";
+import type {Position} from "$lib/canvas/position";
 
 let componentsBeforeScale: Component[] | null = null;
 let mouseBeforeScale: {x: number; y: number} | null = null;
@@ -22,8 +23,6 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
     const originalX = originalPosition.x;
     const originalY = originalPosition.y;
 
-    console.log(originalPosition)
-
     const naiveResultNormalized = calculateScaling(
         originalX,
         originalY,
@@ -40,8 +39,22 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
 
     let usedSnappingLinesInProcess = null
     const frame = get(frames).find(f => f.id === draggedComponent.frame);
-    if (snap && frame) {
 
+    let isXSnap = false;
+    let isYSnap = false;
+
+    let {
+        newX: mouseXAfterProportional,
+        newY: mouseYAfterProportional
+    } = proportional ? calculateProportional(originalPosition, handle, mouseX, mouseY) : {newX: mouseX, newY: mouseY};
+    const diagonalThroughHandle = calculateDiagonalThroughHandle(originalPosition, handle);
+    const diagonalThroughHandleFunction = (x: number) =>
+        diagonalThroughHandle.slope * (x + diagonalThroughHandle.shift) + diagonalThroughHandle.offset;
+    const diagonalThroughHandleFunctionInverse = (y: number) =>
+        (y - diagonalThroughHandle.offset) / diagonalThroughHandle.slope - diagonalThroughHandle.shift;
+
+
+    if (snap && frame) {
         const SNAP_DISTANCE = 16/get(canvasScale);
 
         usedSnappingLinesInProcess = {
@@ -79,14 +92,14 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
         const canChangeNorth = handle === "n" || handle === "nw" || handle === "ne" || (centered && (handle === "s" || handle === "sw" || handle === "se"))
         const canChangeSouth = handle === "s" || handle === "sw" || handle === "se" || (centered && (handle === "n" || handle === "nw" || handle === "ne"))
 
-        let isXSnap = false;
-        let isYSnap = false;
-
         if (isHandleWest || canChangeWest) {
             const nearestXSnap = snappingLines.x.sort((a, b) => Math.abs(a - naiveResultNormalized.scaledX) - Math.abs(b - naiveResultNormalized.scaledX))[0]
             const nearestXSnapDistance = nearestXSnap - naiveResultNormalized.scaledX
             if (Math.abs(nearestXSnapDistance) <= SNAP_DISTANCE) {
-                mouseX += nearestXSnapDistance * (isHandleWest ? 1 : -1)
+                mouseXAfterProportional += nearestXSnapDistance * (isHandleWest ? 1 : -1)
+                if (proportional) {
+                    mouseYAfterProportional = diagonalThroughHandleFunction(mouseXAfterProportional)
+                }
                 isXSnap = true
                 usedSnappingLinesInProcess.x.push(nearestXSnap);
             }
@@ -95,7 +108,10 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
             const nearestXSnap = snappingLines.x.sort((a, b) => Math.abs(a - naiveResultNormalized.scaledX - naiveResultNormalized.scaledWidth) - Math.abs(b - naiveResultNormalized.scaledX - naiveResultNormalized.scaledWidth))[0]
             const nearestXSnapDistance = nearestXSnap - naiveResultNormalized.scaledX - naiveResultNormalized.scaledWidth
             if (Math.abs(nearestXSnapDistance) <= SNAP_DISTANCE) {
-                mouseX += nearestXSnapDistance * (isHandleEast ? 1 : -1)
+                mouseXAfterProportional += nearestXSnapDistance * (isHandleEast ? 1 : -1)
+                if (proportional) {
+                    mouseYAfterProportional = diagonalThroughHandleFunction(mouseXAfterProportional)
+                }
                 usedSnappingLinesInProcess.x.push(nearestXSnap);
             }
         }
@@ -104,7 +120,10 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
             const nearestYSnap = snappingLines.y.sort((a, b) => Math.abs(a - naiveResultNormalized.scaledY) - Math.abs(b - naiveResultNormalized.scaledY))[0]
             const nearestYSnapDistance = nearestYSnap - naiveResultNormalized.scaledY
             if (Math.abs(nearestYSnapDistance) <= SNAP_DISTANCE) {
-                mouseY += nearestYSnapDistance * (isHandleNorth ? 1 : -1)
+                mouseYAfterProportional += nearestYSnapDistance * (isHandleNorth ? 1 : -1)
+                if (proportional) {
+                    mouseXAfterProportional = diagonalThroughHandleFunctionInverse(mouseYAfterProportional)
+                }
                 usedSnappingLinesInProcess.y.push(nearestYSnap);
                 isYSnap = true;
             }
@@ -113,58 +132,17 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
             const nearestYSnap = snappingLines.y.sort((a, b) => Math.abs(a - naiveResultNormalized.scaledY - naiveResultNormalized.scaledHeight) - Math.abs(b - naiveResultNormalized.scaledY - naiveResultNormalized.scaledHeight))[0]
             const nearestYSnapDistance = nearestYSnap - naiveResultNormalized.scaledY - naiveResultNormalized.scaledHeight
             if (Math.abs(nearestYSnapDistance) <= SNAP_DISTANCE) {
-                mouseY += nearestYSnapDistance * (isHandleSouth ? 1 : -1)
+                mouseYAfterProportional += nearestYSnapDistance * (isHandleSouth ? 1 : -1)
+                if (proportional) {
+                    mouseXAfterProportional = diagonalThroughHandleFunctionInverse(mouseYAfterProportional)
+                }
                 usedSnappingLinesInProcess.y.push(nearestYSnap);
             }
         }
     }
 
-    if (proportional && (handle === "nw" || handle === "ne" || handle === "se" || handle === "sw")) {
-        if (handle === "se") {
-            const a = originalHeight / originalWidth;
-            const b = 0
-            const f = (x: number) => a * x + b;
-            const y = f(deltaX);
-            if (y > deltaY) {
-                deltaX = (deltaY - b) / a;
-            } else {
-                deltaY = y
-            }
-        } else if (handle === "sw") {
-            const a = -originalHeight / originalWidth;
-            const b = 0
-            const f = (x: number) => a * x + b;
-            const y = f(deltaX);
-            if (y > deltaY) {
-                deltaX = (deltaY - b) / a;
-            } else {
-                deltaY = y
-            }
-        } else if (handle === "nw") {
-            const a = originalHeight / originalWidth;
-            const b = 0
-            const f = (x: number) => a * x + b;
-            const y = f(deltaX);
-            if (y < deltaY) {
-                deltaX = (deltaY - b) / a;
-            } else {
-                deltaY = y
-            }
-        } else if (handle === "ne") {
-            const a = -originalHeight / originalWidth;
-            const b = 0
-            const f = (x: number) => a * x + b;
-            const y = f(deltaX);
-            if (y < deltaY) {
-                deltaX = (deltaY - b) / a;
-            } else {
-                deltaY = y
-            }
-        }
-    }
-
-    let deltaX = mouseX - mouseBeforeScale!.x;
-    let deltaY = mouseY - mouseBeforeScale!.y;
+    let deltaX = mouseXAfterProportional - mouseBeforeScale!.x;
+    let deltaY = mouseYAfterProportional - mouseBeforeScale!.y;
 
     let {
         scaledX: newX,
@@ -176,7 +154,7 @@ export function scale(draggedComponent: Component, handle: HandleType, mouseX: n
         originalY,
         originalWidth,
         originalHeight,
-        centered,
+        false,
         handle,
         deltaX,
         deltaY,
@@ -285,4 +263,34 @@ function calculateScaling(
     }
 
     return { scaledX, scaledY, scaledWidth, scaledHeight };
+}
+
+function calculateDiagonalThroughHandle(position: Position, handle: HandleType) {
+    const ySign = handle.includes("n") ? -1 : 1;
+    const slopeSign = handle.includes("n") !== handle.includes("w") ? -1 : 1;
+
+    const slope = slopeSign * position.height / position.width;
+    const offset = ySign === 1 ? position.y + position.height : position.y;
+    const shift = handle.includes("w") ? -position.x : -(position.x + position.width);
+
+    return { slope, offset, shift };
+}
+
+
+function calculateProportional(position: Position, handle: HandleType, inputX: number, inputY: number): { newX: number, newY: number } {
+    const { slope, offset, shift } = calculateDiagonalThroughHandle(position, handle)
+    const linearFunction = (x: number) => slope * (x + shift) + offset
+    const inverseLinearFunction = (y: number) => (y - offset) / slope - shift
+
+    const yFromX = linearFunction(inputX)
+    const xFromY = inverseLinearFunction(inputY)
+
+    const dy = Math.abs(yFromX - inputY)
+    const dx = Math.abs(xFromY - inputX)
+
+    if (dy <= dx) {
+        return { newX: inputX, newY: yFromX }
+    } else {
+        return { newX: xFromY, newY: inputY }
+    }
 }
