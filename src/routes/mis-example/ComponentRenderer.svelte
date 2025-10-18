@@ -62,6 +62,7 @@
 >
     {#if component.type === "rectangle"}
         <Rectangle rectangle={component}/>
+        <span class="absolute">{component.frame ?? "free"}</span>
     {/if}
 
     {#if isSelected}

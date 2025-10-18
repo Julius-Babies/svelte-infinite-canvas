@@ -14,8 +14,9 @@
     import {onMount} from "svelte";
     import {mouse} from "$lib/state/mouse";
     import {onSelect, selectedComponents} from "./selection";
-    import {move, stopMove} from "./move";
+    import {move, stopMove, usedSnappingLines} from "./move";
     import {get} from "svelte/store";
+    import {isCtrlPressed} from "$lib/state/keyboard";
 
     let canvasContainer: HTMLDivElement | undefined = $state(undefined);
 
@@ -59,6 +60,24 @@
                 <div class="absolute -top-5 left-0 w-full text-xs text-gray-700 text-nowrap text-ellipsis overflow-hidden" style="zoom: {1/$canvasScale};">
                     Frame {frame.id}
                 </div>
+                <div class="absolute top-0 left-0 w-full h-full rounded-4xl overflow-hidden">
+                    {#if $usedSnappingLines && $usedSnappingLines.frameId === frame.id}
+                        {#each $usedSnappingLines.x as x}
+                            <div
+                                    class="absolute top-0 left-0 h-dvw border w-[{1/$canvasScale}px] border-red-500 border-dashed"
+                                    style="transform: translateX({x}px)"
+                            >
+                            </div>
+                        {/each}
+                        {#each $usedSnappingLines.y as y}
+                            <div
+                                    class="absolute top-0 left-0 h-[{1/$canvasScale}px] border w-full border-red-500 border-dashed"
+                                    style="transform: translateY({y}px)"
+                            >
+                            </div>
+                        {/each}
+                    {/if}
+                </div>
             </div>
         {/each}
 
@@ -67,7 +86,7 @@
                     component={component}
                     isSelected={$selectedComponents.includes(component)}
                     onclick={(e) => onSelect(component, e.shiftKey)}
-                    onmove={() => move(component, get(canvasMousePosition).x, get(canvasMousePosition).y)}
+                    onmove={() => move(component, get(canvasMousePosition).x, get(canvasMousePosition).y, !get(isCtrlPressed))}
                     onmovedone={stopMove}
             />
         {/each}
