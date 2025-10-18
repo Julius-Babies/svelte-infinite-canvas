@@ -1,7 +1,7 @@
 <script lang="ts">
     import type {Component} from "./component";
     import Rectangle from "./components/Rectangle.svelte";
-    import {getHandles} from "./handle";
+    import {getHandles, type HandleType} from "./handle";
     import {canvasMousePosition, canvasScale} from "./state";
     import {setMouseBeforeMove} from "./move";
     import Ellipse from "./components/Ellipse.svelte";
@@ -12,12 +12,14 @@
         onclick,
         onmove,
         onmovedone,
+        onscale
     }: {
         component: Component,
         isSelected: boolean,
         onclick?: (e: MouseEvent) => void,
         onmove?: () => void,
         onmovedone?: () => void,
+        onscale?: (handle: HandleType) => void,
     } = $props();
 
     let handles = $derived(getHandles($canvasScale, component.position.width, component.position.height))
@@ -29,18 +31,18 @@
         setMouseBeforeMove($canvasMousePosition.x, $canvasMousePosition.y)
         e.preventDefault();
         e.stopPropagation();
-        document.addEventListener("mousemove", onMouseMove);
-        document.addEventListener("mouseup", onMouseUp);
+        document.addEventListener("mousemove", onMouseMoveComponent);
+        document.addEventListener("mouseup", onMouseUpComponent);
     }
 
     let wasDragged = $state(false);
-    function onMouseMove() {
+    function onMouseMoveComponent() {
         if (!isComponentMouseDown) return;
         if (onmove) wasDragged = true;
         onmove?.()
     }
 
-    function onMouseUp(e: MouseEvent) {
+    function onMouseUpComponent(e: MouseEvent) {
         if (wasDragged) {
             onmovedone?.()
             console.log("moved");
@@ -50,8 +52,8 @@
         }
 
         isComponentMouseDown = false;
-        document.removeEventListener("mousemove", onMouseMove);
-        document.removeEventListener("mouseup", onMouseUp);
+        document.removeEventListener("mousemove", onMouseMoveComponent);
+        document.removeEventListener("mouseup", onMouseUpComponent);
     }
 </script>
 
